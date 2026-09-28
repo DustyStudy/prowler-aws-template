@@ -51,6 +51,12 @@ variable "report_retention_days" {
   default     = 365
 }
 
+variable "report_email" {
+  description = "Address that receives (and, via SES, sends) the post-scan report email. Null disables it. AWS emails a verification link on first apply."
+  type        = string
+  default     = null
+}
+
 variable "budget_email" {
   description = "Email for the monthly cost alarm. Null disables the budget."
   type        = string
@@ -60,10 +66,4 @@ variable "budget_email" {
 variable "budget_limit_usd" {
   type    = number
   default = 5
-}
-
-variable "notification_emails" {
-  description = "Addresses that get an email summary after each scan. Each must confirm the SNS subscription. Empty disables email."
-  type        = list(string)
-  default     = []
 }
