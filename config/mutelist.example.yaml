@@ -1,0 +1,23 @@
+# Copy to config/mutelist.yaml to mute accepted findings. The workflow passes
+# --mutelist-file automatically when config/mutelist.yaml exists.
+# Muted findings still appear in reports (status "Suppressed" / MUTED) but are
+# excluded from the job summary counts.
+#
+# Docs: https://docs.prowler.com/user-guide/cli/tutorials/mutelist
+Mutelist:
+  Accounts:
+    "*": # any account
+      Checks:
+        # Example: we intentionally don't use GuardDuty in these accounts
+        "guardduty_is_enabled":
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+    "111111111111": # one specific account
+      Checks:
+        "s3_bucket_public_access":
+          Regions:
+            - "us-east-1"
+          Resources:
+            - "my-public-website-bucket"

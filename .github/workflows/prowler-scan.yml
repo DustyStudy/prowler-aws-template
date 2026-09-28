@@ -1,0 +1,152 @@
+name: Prowler scan
+
+on:
+  schedule:
+    - cron: "0 6 * * 0" # Sundays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      accounts:
+        description: "Comma-separated account IDs to scan (blank = every active account in the org)"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write # OIDC to AWS
+  contents: read
+
+concurrency:
+  group: prowler-scan
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  SCAN_REGIONS: us-east-1 # space-separated list passed to prowler -f
+  PROWLER_VERSION: "5.43.0"
+  SCAN_ROLE_NAME: ProwlerScan
+  RUNNER_ROLE_ARN: arn:aws:iam::${{ vars.SCANNER_ACCOUNT_ID }}:role/prowler-gha-runner
+
+jobs:
+  discover:
+    name: Discover accounts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      accounts: ${{ steps.list.outputs.accounts }}
+      run_date: ${{ steps.list.outputs.run_date }}
+    steps:
+      - name: Assume runner role
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.RUNNER_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume management ProwlerScan role (can list org accounts)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ env.SCAN_ROLE_NAME }}
+          role-chaining: true
+          role-skip-session-tagging: true # ProwlerScan's trust policy doesn't allow sts:TagSession
+          role-session-name: prowler-discover
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: List accounts
+        id: list
+        env:
+          INPUT_ACCOUNTS: ${{ inputs.accounts }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_ACCOUNTS// /}" ]]; then
+            cleaned="${INPUT_ACCOUNTS// /}"
+            if [[ ! "$cleaned" =~ ^[0-9]{12}(,[0-9]{12})*$ ]]; then
+              echo "::error::accounts must be comma-separated 12-digit IDs"; exit 1
+            fi
+            accounts=$(jq -cn --arg a "$cleaned" '$a | split(",")')
+          else
+            accounts=$(aws organizations list-accounts --output json \
+              | jq -c '[.Accounts[] | select((.State // .Status) == "ACTIVE") | .Id] | sort')
+          fi
+          echo "Accounts: $accounts"
+          echo "accounts=$accounts" >> "$GITHUB_OUTPUT"
+          echo "run_date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan ${{ matrix.account }}
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        account: ${{ fromJson(needs.discover.outputs.accounts) }}
+    env:
+      ACCOUNT_ID: ${{ matrix.account }}
+      RUN_DATE: ${{ needs.discover.outputs.run_date }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Prowler
+        run: pip install --quiet "prowler==${PROWLER_VERSION}"
+
+      # Prowler assumes ProwlerScan in the target account itself and refreshes
+      # those chained credentials, so the runner session must outlive the scan.
+      - name: Assume runner role
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.RUNNER_ROLE_ARN }}
+          role-duration-seconds: 14400
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run Prowler
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ -f config/mutelist.yaml ]]; then
+            extra+=(--mutelist-file config/mutelist.yaml)
+          fi
+          # shellcheck disable=SC2086
+          prowler aws \
+            --role "arn:aws:iam::${ACCOUNT_ID}:role/${SCAN_ROLE_NAME}" \
+            --role-session-name prowler-scan \
+            -f $SCAN_REGIONS \
+            -M csv html json-ocsf \
+            -o output \
+            -F "prowler-${ACCOUNT_ID}" \
+            --no-banner \
+            --ignore-exit-code-3 \
+            "${extra[@]}"
+
+      - name: Upload reports to S3
+        if: always()
+        run: |
+          if [[ -d output ]]; then
+            aws s3 cp output "s3://${{ vars.REPORTS_BUCKET }}/reports/${RUN_DATE}/${ACCOUNT_ID}/" --recursive --only-show-errors
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          ocsf="output/prowler-${ACCOUNT_ID}.ocsf.json"
+          {
+            echo "### Prowler: ${ACCOUNT_ID}"
+            if [[ -f "$ocsf" ]]; then
+              echo ""
+              echo "| Severity | Failed (not muted) |"
+              echo "|---|---|"
+              jq -r '
+                [.[] | select(.status_code == "FAIL" and .status != "Suppressed") | .severity]
+                | group_by(.) | map({s: .[0], n: length})
+                | sort_by({"Critical":0,"High":1,"Medium":2,"Low":3,"Informational":4}[.s] // 9)
+                | .[] | "| \(.s) | \(.n) |"' "$ocsf"
+              echo ""
+              echo "Total checks evaluated: $(jq length "$ocsf")"
+            else
+              echo "No OCSF output produced; see the Run Prowler step log."
+            fi
+            echo ""
+            echo "Reports: \`s3://${{ vars.REPORTS_BUCKET }}/reports/${RUN_DATE}/${ACCOUNT_ID}/\`"
+          } >> "$GITHUB_STEP_SUMMARY"

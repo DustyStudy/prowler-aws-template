@@ -1,0 +1,4 @@
+# Copy to backend.hcl. State lives in the SECURITY account even though
+# this stack is applied with management-account credentials.
+bucket  = "prowler-tfstate-111111111111"
+profile = "security"
