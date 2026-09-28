@@ -8,6 +8,9 @@ locals {
   bucket_name = "prowler-reports-${local.account_id}"
 
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+
+  report_from     = coalesce(var.report_from_email, var.report_email, "unused")
+  separate_sender = var.report_email != null && var.report_from_email != null && var.report_from_email != var.report_email
 }
 
 # ---------------------------------------------------------------------------
@@ -78,12 +81,12 @@ data "aws_iam_policy_document" "runner" {
   }
 
   dynamic "statement" {
-    for_each = var.report_email == null ? [] : [var.report_email]
+    for_each = var.report_email == null ? [] : [local.report_from]
 
     content {
       sid       = "SendReportEmail"
       actions   = ["ses:SendEmail", "ses:SendRawEmail"]
-      resources = [aws_sesv2_email_identity.report[0].arn]
+      resources = concat(aws_sesv2_email_identity.report[*].arn, aws_sesv2_email_identity.report_sender[*].arn)
 
       condition {
         test     = "StringEquals"
@@ -103,6 +106,12 @@ data "aws_iam_policy_document" "runner" {
 resource "aws_sesv2_email_identity" "report" {
   count          = var.report_email == null ? 0 : 1
   email_identity = var.report_email
+}
+
+# Sandbox mode requires the sender to be verified too.
+resource "aws_sesv2_email_identity" "report_sender" {
+  count          = local.separate_sender ? 1 : 0
+  email_identity = var.report_from_email
 }
 
 resource "aws_iam_role_policy" "runner" {

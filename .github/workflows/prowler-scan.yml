@@ -195,6 +195,7 @@ jobs:
       - name: Send email
         env:
           REPORT_EMAIL: ${{ vars.REPORT_EMAIL }}
+          REPORT_FROM_EMAIL: ${{ vars.REPORT_FROM_EMAIL }}
           REPORTS_BUCKET: ${{ vars.REPORTS_BUCKET }}
           ACCOUNTS: ${{ needs.discover.outputs.accounts }}
           ACCOUNT_NAMES: ${{ needs.discover.outputs.account_names }}

@@ -57,6 +57,12 @@ variable "report_email" {
   default     = null
 }
 
+variable "report_from_email" {
+  description = "Sender address for the report email. Defaults to report_email. Use a different address (e.g. you+prowler@gmail.com) so Gmail doesn't file it as mail you sent yourself."
+  type        = string
+  default     = null
+}
+
 variable "budget_email" {
   description = "Email for the monthly cost alarm. Null disables the budget."
   type        = string

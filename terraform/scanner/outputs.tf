@@ -8,6 +8,11 @@ output "reports_bucket" {
   value       = aws_s3_bucket.reports.bucket
 }
 
+output "report_from_email" {
+  description = "Set as the REPORT_FROM_EMAIL GitHub variable."
+  value       = var.report_email == null ? null : local.report_from
+}
+
 output "runner_role_arn" {
   value = aws_iam_role.runner.arn
 }
