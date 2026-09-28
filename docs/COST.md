@@ -11,6 +11,7 @@ These assumptions are illustrative: 10 accounts, us-east-1 only, weekly scans, a
 | Terraform state bucket | < $0.01/month | |
 | IAM, OIDC, StackSets, Organizations | $0 | |
 | AWS Budgets | $0 | The first 2 budgets are free |
+| SNS email summaries (optional) | $0 | The first 1,000 email deliveries a month are free. The AWS-managed `aws/sns` key has no monthly fee |
 | API calls made by Prowler | $0 | Read-only Describe/List/Get calls are free. CloudTrail management events are free for the first trail |
 
 ## Choices made to keep cost down

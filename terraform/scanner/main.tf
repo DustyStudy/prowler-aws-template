@@ -7,6 +7,8 @@ locals {
   partition   = data.aws_partition.current.partition
   bucket_name = "prowler-reports-${local.account_id}"
 
+  email_enabled = length(var.notification_emails) > 0
+
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -75,6 +77,40 @@ data "aws_iam_policy_document" "runner" {
     sid       = "WriteReports"
     actions   = ["s3:PutObject"]
     resources = ["${aws_s3_bucket.reports.arn}/reports/*"]
+  }
+
+  dynamic "statement" {
+    for_each = local.email_enabled ? [1] : []
+
+    content {
+      sid       = "PublishScanSummary"
+      actions   = ["sns:Publish"]
+      resources = [aws_sns_topic.scan_summary[0].arn]
+    }
+  }
+
+  # Publishing to an encrypted topic uses the topic's KMS key. AWS creates the
+  # aws/sns key on first use, so match it by alias instead of looking up its ARN.
+  dynamic "statement" {
+    for_each = local.email_enabled ? [1] : []
+
+    content {
+      sid       = "UseSnsKeyForPublish"
+      actions   = ["kms:GenerateDataKey*", "kms:Decrypt"]
+      resources = ["arn:${local.partition}:kms:${var.region}:${local.account_id}:key/*"]
+
+      condition {
+        test     = "ForAnyValue:StringEquals"
+        variable = "kms:ResourceAliases"
+        values   = ["alias/aws/sns"]
+      }
+
+      condition {
+        test     = "StringEquals"
+        variable = "kms:ViaService"
+        values   = ["sns.${var.region}.amazonaws.com"]
+      }
+    }
   }
 }
 
@@ -197,4 +233,26 @@ resource "aws_budgets_budget" "monthly" {
     notification_type          = "ACTUAL"
     subscriber_email_addresses = [var.budget_email]
   }
+}
+
+# ---------------------------------------------------------------------------
+# Email summary (optional)
+# ---------------------------------------------------------------------------
+
+# SNS email is free for the first 1,000 emails a month and needs no domain
+# verification, unlike SES. The AWS-managed key keeps the topic encrypted at rest
+# without the $1/month cost of a customer-managed key.
+resource "aws_sns_topic" "scan_summary" {
+  count = local.email_enabled ? 1 : 0
+
+  name              = "prowler-scan-summary"
+  kms_master_key_id = "alias/aws/sns"
+}
+
+resource "aws_sns_topic_subscription" "scan_summary" {
+  for_each = local.email_enabled ? toset(var.notification_emails) : toset([])
+
+  topic_arn = aws_sns_topic.scan_summary[0].arn
+  protocol  = "email"
+  endpoint  = each.value
 }

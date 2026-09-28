@@ -154,3 +154,81 @@ jobs:
             echo ""
             echo "Reports: \`s3://${{ vars.REPORTS_BUCKET }}/reports/${RUN_DATE}/${ACCOUNT_ID}/\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save counts for email
+        if: always() && vars.NOTIFY_TOPIC_ARN != ''
+        run: |
+          ocsf="output/prowler-${ACCOUNT_ID}.ocsf.json"
+          mkdir -p counts
+          if [[ -f "$ocsf" ]]; then
+            jq -c --arg a "$ACCOUNT_ID" '{
+              account: $a,
+              total: length,
+              failed: ([.[] | select(.status_code == "FAIL" and .status != "Suppressed") | .severity]
+                       | group_by(.) | map({key: .[0], value: length}) | from_entries)
+            }' "$ocsf" > "counts/${ACCOUNT_ID}.json"
+          else
+            jq -cn --arg a "$ACCOUNT_ID" '{account: $a, error: true}' > "counts/${ACCOUNT_ID}.json"
+          fi
+
+      - name: Upload counts
+        if: always() && vars.NOTIFY_TOPIC_ARN != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: counts-${{ matrix.account }}
+          path: counts/
+          retention-days: 1
+
+  notify:
+    name: Email summary
+    needs: [discover, scan]
+    if: always() && needs.discover.result == 'success' && vars.NOTIFY_TOPIC_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUN_DATE: ${{ needs.discover.outputs.run_date }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      TOPIC_ARN: ${{ vars.NOTIFY_TOPIC_ARN }}
+      REPORTS_BUCKET: ${{ vars.REPORTS_BUCKET }}
+    steps:
+      - name: Download counts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: counts-*
+          path: counts
+          merge-multiple: true
+
+      - name: Assume runner role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: ${{ env.RUNNER_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Publish to SNS
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(counts/*.json)
+          all='[]'
+          if (( ${#files[@]} )); then all=$(jq -s 'sort_by(.account)' "${files[@]}"); fi
+
+          body=$(jq -r --arg url "$RUN_URL" --arg date "$RUN_DATE" --arg bucket "$REPORTS_BUCKET" '
+            def n($s): (.failed[$s] // 0) | tostring;
+            def pad($w): tostring | . + (" " * ([$w - length, 0] | max));
+            "Prowler scan \($date)\n",
+            "Failed findings (not muted) by account:\n",
+            "\("Account" | pad(14))\("Crit" | pad(6))\("High" | pad(6))\("Med" | pad(6))\("Low" | pad(6))Info",
+            (.[] | if .error then "\(.account | pad(14))scan failed, see the run log"
+                   else "\(.account | pad(14))\(n("Critical") | pad(6))\(n("High") | pad(6))\(n("Medium") | pad(6))\(n("Low") | pad(6))\(n("Informational"))" end),
+            (if length == 0 then "(no scan results)" else empty end),
+            "\nTotals: \([.[].failed // {} | to_entries[] | select(.key == "Critical" or .key == "High") | .value] | add // 0) critical/high findings across \(length) account(s).",
+            "\nRun: \($url)",
+            "Reports: s3://\($bucket)/reports/\($date)/"
+          ' <<<"$all")
+
+          crit=$(jq '[.[].failed.Critical // 0] | add // 0' <<<"$all")
+          failed=$(jq '[.[] | select(.error)] | length' <<<"$all")
+          subject="Prowler ${RUN_DATE}: ${crit} critical finding(s)"
+          if (( failed > 0 )); then subject+=", ${failed} scan(s) failed"; fi
+          echo "$body"
+          aws sns publish --topic-arn "$TOPIC_ARN" --subject "$subject" --message "$body" >/dev/null

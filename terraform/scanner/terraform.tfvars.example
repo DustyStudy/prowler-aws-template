@@ -7,6 +7,7 @@ github_owner_id = 12345678  # gh api repos/<owner>/<repo> --jq '.owner.id, .id'
 github_repo_id  = 987654321
 
 # Optional
+# notification_emails = ["security-team@example.com"]  # email summary after each scan
 # budget_email = "you@example.com"
 # budget_limit_usd = 5
 # report_retention_days = 365
