@@ -138,7 +138,12 @@ To enable it:
 1. Set `report_email` in `terraform/scanner/terraform.tfvars` and apply. AWS emails that address a verification link; click it.
 2. `gh variable set REPORT_EMAIL --body "<same address>"`
 
-The SES account stays in sandbox mode, which can send only to verified addresses. That works because the sender and recipient are the same verified address. Use a team list address so everyone gets the report. If the first email lands in spam, mark it "Not spam". Unset the `REPORT_EMAIL` variable to turn emails off.
+The SES account stays in sandbox mode, which can send only to verified addresses. By default the sender and recipient are the same verified address. Use a team list address so everyone gets the report. If the first email lands in spam, mark it "Not spam". Unset the `REPORT_EMAIL` variable to turn emails off.
+
+**Separate sender (optional).** Some mail providers, Gmail included, file mail "from" your own address as sent mail rather than showing it in the inbox. To avoid that, send from a second address, such as a `+prowler` alias:
+
+1. Also set `report_from_email` in `terraform.tfvars` and apply. Click the verification link sent to that address too.
+2. `gh variable set REPORT_FROM_EMAIL --body "$(terraform -chdir=terraform/scanner output -raw report_from_email)"`
 
 ## Viewing reports
 

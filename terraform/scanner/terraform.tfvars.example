@@ -8,6 +8,7 @@ github_repo_id  = 987654321
 
 # Optional
 # report_email = "security-team@example.com"  # post-scan email with HTML reports attached (SES)
+# report_from_email = "security-team+prowler@example.com"  # optional separate sender; must also be verified
 # budget_email = "you@example.com"
 # budget_limit_usd = 5
 # report_retention_days = 365
