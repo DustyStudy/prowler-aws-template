@@ -35,7 +35,7 @@ Every org account ── ProwlerScan role (read-only; StackSet, auto-deploys to 
 Click **Use this template** on GitHub, or:
 
 ```sh
-gh repo create <your-org>/prowler-aws --private --template <template-owner>/prowler-aws-template --clone
+gh repo create <your-org>/prowler-aws --private --template DustyStudy/prowler-aws-template --clone
 ```
 
 Keep your copy **private**. Scan results never go to the repo, but the workflow file and
