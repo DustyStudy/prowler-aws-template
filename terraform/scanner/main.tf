@@ -7,8 +7,6 @@ locals {
   partition   = data.aws_partition.current.partition
   bucket_name = "prowler-reports-${local.account_id}"
 
-  email_enabled = length(var.notification_emails) > 0
-
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -80,38 +78,31 @@ data "aws_iam_policy_document" "runner" {
   }
 
   dynamic "statement" {
-    for_each = local.email_enabled ? [1] : []
+    for_each = var.report_email == null ? [] : [var.report_email]
 
     content {
-      sid       = "PublishScanSummary"
-      actions   = ["sns:Publish"]
-      resources = [aws_sns_topic.scan_summary[0].arn]
-    }
-  }
-
-  # Publishing to an encrypted topic uses the topic's KMS key. AWS creates the
-  # aws/sns key on first use, so match it by alias instead of looking up its ARN.
-  dynamic "statement" {
-    for_each = local.email_enabled ? [1] : []
-
-    content {
-      sid       = "UseSnsKeyForPublish"
-      actions   = ["kms:GenerateDataKey*", "kms:Decrypt"]
-      resources = ["arn:${local.partition}:kms:${var.region}:${local.account_id}:key/*"]
-
-      condition {
-        test     = "ForAnyValue:StringEquals"
-        variable = "kms:ResourceAliases"
-        values   = ["alias/aws/sns"]
-      }
+      sid       = "SendReportEmail"
+      actions   = ["ses:SendEmail", "ses:SendRawEmail"]
+      resources = [aws_sesv2_email_identity.report[0].arn]
 
       condition {
         test     = "StringEquals"
-        variable = "kms:ViaService"
-        values   = ["sns.${var.region}.amazonaws.com"]
+        variable = "ses:FromAddress"
+        values   = [statement.value]
       }
     }
   }
+}
+
+# ---------------------------------------------------------------------------
+# Report email (SES). The account stays in the SES sandbox, which only allows
+# sending to verified addresses. That's fine here: sender and recipient are the
+# same verified address. ~$0.10 per 1,000 emails.
+# ---------------------------------------------------------------------------
+
+resource "aws_sesv2_email_identity" "report" {
+  count          = var.report_email == null ? 0 : 1
+  email_identity = var.report_email
 }
 
 resource "aws_iam_role_policy" "runner" {
@@ -233,26 +224,4 @@ resource "aws_budgets_budget" "monthly" {
     notification_type          = "ACTUAL"
     subscriber_email_addresses = [var.budget_email]
   }
-}
-
-# ---------------------------------------------------------------------------
-# Email summary (optional)
-# ---------------------------------------------------------------------------
-
-# SNS email is free for the first 1,000 emails a month and needs no domain
-# verification, unlike SES. The AWS-managed key keeps the topic encrypted at rest
-# without the $1/month cost of a customer-managed key.
-resource "aws_sns_topic" "scan_summary" {
-  count = local.email_enabled ? 1 : 0
-
-  name              = "prowler-scan-summary"
-  kms_master_key_id = "alias/aws/sns"
-}
-
-resource "aws_sns_topic_subscription" "scan_summary" {
-  for_each = local.email_enabled ? toset(var.notification_emails) : toset([])
-
-  topic_arn = aws_sns_topic.scan_summary[0].arn
-  protocol  = "email"
-  endpoint  = each.value
 }

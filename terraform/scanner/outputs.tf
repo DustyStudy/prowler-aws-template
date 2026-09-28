@@ -11,8 +11,3 @@ output "reports_bucket" {
 output "runner_role_arn" {
   value = aws_iam_role.runner.arn
 }
-
-output "notify_topic_arn" {
-  description = "Set as the NOTIFY_TOPIC_ARN GitHub variable to enable email summaries."
-  value       = local.email_enabled ? aws_sns_topic.scan_summary[0].arn : null
-}
