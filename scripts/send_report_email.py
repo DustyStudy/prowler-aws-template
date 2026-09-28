@@ -4,7 +4,7 @@ Usage: send_report_email.py <reports_dir>
   <reports_dir> holds one sub-directory per account (downloaded artifacts), each with
   prowler-<account>.ocsf.json and prowler-<account>.html.
 
-Env: REPORT_EMAIL, ACCOUNTS (JSON list), ACCOUNT_NAMES (JSON object id -> name),
+Env: REPORT_EMAIL, REPORT_FROM_EMAIL (optional, defaults to REPORT_EMAIL), ACCOUNTS (JSON list), ACCOUNT_NAMES (JSON object id -> name),
      SCAN_RESULT, RUN_DATE, RUN_URL, REPORTS_BUCKET
 """
 
@@ -46,6 +46,7 @@ def summarize(ocsf_path: Path) -> dict:
 def main() -> None:
     reports_dir = Path(sys.argv[1])
     to_addr = os.environ["REPORT_EMAIL"]
+    from_addr = os.environ.get("REPORT_FROM_EMAIL") or to_addr
     accounts = json.loads(os.environ["ACCOUNTS"])
     names = json.loads(os.environ.get("ACCOUNT_NAMES") or "{}")
     run_date = os.environ["RUN_DATE"]
@@ -118,7 +119,7 @@ Run log: <a href="{run_url}">{run_url}</a></p>
     msg["Subject"] = f"Prowler {run_date}: {totals['Critical']} critical, {totals['High']} high across {len(accounts)} accounts"
     if os.environ.get("SCAN_RESULT") not in ("success", ""):
         msg.replace_header("Subject", msg["Subject"] + f" ({os.environ['SCAN_RESULT']})")
-    msg["From"] = f"Prowler <{to_addr}>"
+    msg["From"] = f"Prowler <{from_addr}>"
     msg["To"] = to_addr
     msg.set_content(f"Prowler scan {run_date}: {crit_high} critical/high findings. View this email as HTML, or see {run_url}")
     msg.add_alternative(body, subtype="html")
@@ -134,7 +135,7 @@ Run log: <a href="{run_url}">{run_url}</a></p>
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         json.dump(content, f)
     subprocess.run(
-        ["aws", "sesv2", "send-email", "--from-email-address", to_addr,
+        ["aws", "sesv2", "send-email", "--from-email-address", from_addr,
          "--destination", json.dumps({"ToAddresses": [to_addr]}),
          "--content", f"file://{f.name}"],
         check=True,
