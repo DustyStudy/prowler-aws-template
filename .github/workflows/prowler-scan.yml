@@ -28,6 +28,8 @@ env:
 jobs:
   discover:
     name: Discover accounts
+    # Skip cleanly in the template repo and in new copies that aren't configured yet.
+    if: vars.SCANNER_ACCOUNT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -35,13 +37,13 @@ jobs:
       run_date: ${{ steps.list.outputs.run_date }}
     steps:
       - name: Assume runner role
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: ${{ env.RUNNER_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Assume management ProwlerScan role (can list org accounts)
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ env.SCAN_ROLE_NAME }}
           role-chaining: true
@@ -83,9 +85,11 @@ jobs:
       ACCOUNT_ID: ${{ matrix.account }}
       RUN_DATE: ${{ needs.discover.outputs.run_date }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
 
@@ -95,7 +99,7 @@ jobs:
       # Prowler assumes ProwlerScan in the target account itself and refreshes
       # those chained credentials, so the runner session must outlive the scan.
       - name: Assume runner role
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: ${{ env.RUNNER_ROLE_ARN }}
           role-duration-seconds: 14400

@@ -7,12 +7,6 @@ locals {
   partition   = data.aws_partition.current.partition
   bucket_name = "prowler-reports-${local.account_id}"
 
-  oidc_subject = (
-    var.github_owner_id == null
-    ? "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/main"
-    : "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main"
-  )
-
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -52,7 +46,7 @@ data "aws_iam_policy_document" "runner_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.oidc_subject]
+      values   = ["repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main"]
     }
   }
 }

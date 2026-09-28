@@ -77,18 +77,16 @@ AWS_PROFILE=security terraform apply
 ```
 
 `github_owner` and `github_repo` must match **your** copy of this repo. The runner role
-trusts only workflows on that repo's `main` branch.
-
-Check which OIDC subject format your repo uses:
+trusts only workflows on that repo's `main` branch. GitHub's OIDC subject for new repos
+includes numeric IDs, so also set `github_owner_id` and `github_repo_id`:
 
 ```sh
-gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+gh api repos/<owner>/<repo> --jq '.owner.id, .id'
 ```
 
-If the repo uses the immutable format (`repo:<owner>@<id>/<repo>@<id>:...`), also set
-`github_owner_id` and `github_repo_id`. Get the IDs with
-`gh api repos/<owner>/<repo> --jq '.owner.id, .id'`. If the first scan fails with
-`Not authorized to perform sts:AssumeRoleWithWebIdentity`, the subject format is the usual cause.
+To confirm the format, run `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`.
+`use_immutable_subject` should be `true`. If it is `false`, change the `sub` condition in
+`scanner/main.tf` to `repo:<owner>/<repo>:ref:refs/heads/main`.
 
 If the account already has the GitHub OIDC provider, set `create_github_oidc_provider = false`.
 
@@ -114,7 +112,8 @@ gh variable set MANAGEMENT_ACCOUNT_ID --body "<management account id>"
 gh variable set REPORTS_BUCKET        --body "prowler-reports-<security account id>"
 ```
 
-(The values come from the `scanner` and `org-roles` outputs.)
+(The values come from the `scanner` and `org-roles` outputs.) Until `SCANNER_ACCOUNT_ID`
+is set, the scan workflow skips instead of failing.
 
 ### 6. First scan
 
@@ -153,3 +152,4 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 - `ProwlerScan` is read-only (`SecurityAudit` + `ViewOnlyAccess` + Prowler's read-only additions)
   and trusts only the runner role.
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
+- Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.

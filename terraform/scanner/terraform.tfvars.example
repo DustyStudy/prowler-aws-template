@@ -1,12 +1,10 @@
 # Copy to terraform.tfvars (gitignored) and fill in.
 
 # Required: the GitHub repo that runs the scan workflow (your copy of this template).
-github_owner = "your-github-org"
-github_repo  = "prowler-aws"
-
-# Only if your repo uses GitHub's immutable OIDC subject format (see variables.tf):
-# github_owner_id = 12345678
-# github_repo_id  = 987654321
+github_owner    = "your-github-org"
+github_repo     = "prowler-aws"
+github_owner_id = 12345678  # gh api repos/<owner>/<repo> --jq '.owner.id, .id'
+github_repo_id  = 987654321
 
 # Optional
 # budget_email = "you@example.com"
