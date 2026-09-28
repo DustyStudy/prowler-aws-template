@@ -125,6 +125,26 @@ gh run watch
 
 Each account's job summary shows failed findings by severity.
 
+## Email summaries (optional)
+
+After each scan, one email lists failed findings by severity for every account, with links
+to the run and the S3 reports. It uses SNS email: no domain setup, and free for the first
+1,000 emails a month.
+
+1. In `scanner/terraform.tfvars`, set `notification_emails = ["security-team@example.com"]`
+   and apply the `scanner` stack again.
+2. Each address gets an **AWS Notification - Subscription Confirmation** email.
+   Click the confirm link. Unconfirmed addresses get nothing.
+3. Enable the workflow step:
+
+   ```sh
+   gh variable set NOTIFY_TOPIC_ARN --body "$(terraform -chdir=terraform/scanner output -raw notify_topic_arn)"
+   ```
+
+Emails are plain text from `no-reply@sns.amazonaws.com`. Every email has an unsubscribe
+link, so use a team list address rather than individual inboxes. To turn email off, delete
+the `NOTIFY_TOPIC_ARN` variable.
+
 ## Viewing reports
 
 ```sh

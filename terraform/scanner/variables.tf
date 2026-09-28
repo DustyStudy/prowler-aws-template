@@ -61,3 +61,9 @@ variable "budget_limit_usd" {
   type    = number
   default = 5
 }
+
+variable "notification_emails" {
+  description = "Addresses that get an email summary after each scan. Each must confirm the SNS subscription. Empty disables email."
+  type        = list(string)
+  default     = []
+}
