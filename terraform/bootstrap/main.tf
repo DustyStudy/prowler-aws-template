@@ -31,6 +31,10 @@ variable "region" {
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "state" {
+  #checkov:skip=CKV_AWS_18:State bucket for a two-stack template; CloudTrail data events are the better audit source if needed
+  #checkov:skip=CKV_AWS_144:Versioned state is enough for this low-cost template; replication doubles cost
+  #checkov:skip=CKV_AWS_145:SSE-S3 keeps the template free of per-key KMS cost; the stacks create no secrets (OIDC only, no access keys)
+  #checkov:skip=CKV2_AWS_62:Nothing consumes state bucket events
   bucket = "prowler-tfstate-${data.aws_caller_identity.current.account_id}"
 
   lifecycle {

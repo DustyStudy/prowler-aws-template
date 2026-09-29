@@ -6,11 +6,14 @@ locals {
   account_id  = data.aws_caller_identity.current.account_id
   partition   = data.aws_partition.current.partition
   bucket_name = "prowler-reports-${local.account_id}"
+  # Built from the name so IAM and bucket policies render in full at plan time.
+  bucket_arn = "arn:${local.partition}:s3:::${local.bucket_name}"
 
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 
   report_from     = coalesce(var.report_from_email, var.report_email, "unused")
   separate_sender = var.report_email != null && var.report_from_email != null && var.report_from_email != var.report_email
+  ses_identities  = compact([var.report_email, local.separate_sender ? var.report_from_email : null])
 }
 
 # ---------------------------------------------------------------------------
@@ -77,7 +80,7 @@ data "aws_iam_policy_document" "runner" {
   statement {
     sid       = "WriteReports"
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.reports.arn}/reports/*"]
+    resources = ["${local.bucket_arn}/reports/*"]
   }
 
   dynamic "statement" {
@@ -86,7 +89,7 @@ data "aws_iam_policy_document" "runner" {
     content {
       sid       = "SendReportEmail"
       actions   = ["ses:SendEmail", "ses:SendRawEmail"]
-      resources = concat(aws_sesv2_email_identity.report[*].arn, aws_sesv2_email_identity.report_sender[*].arn)
+      resources = [for email in local.ses_identities : "arn:${local.partition}:ses:${var.region}:${local.account_id}:identity/${email}"]
 
       condition {
         test     = "StringEquals"
@@ -125,6 +128,11 @@ resource "aws_iam_role_policy" "runner" {
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "reports" {
+  #checkov:skip=CKV_AWS_21:Reports are regenerated every week; versioning would only add storage cost
+  #checkov:skip=CKV_AWS_18:Access logging would cost more than the reports themselves; only the runner role can write here
+  #checkov:skip=CKV_AWS_144:Cross-region replication doubles cost for reproducible scan output
+  #checkov:skip=CKV_AWS_145:SSE-S3 instead of a CMK saves $1/month per key; see the comment on the encryption resource
+  #checkov:skip=CKV2_AWS_62:Nothing consumes object events; the email job reads reports from workflow artifacts
   bucket = local.bucket_name
 }
 
@@ -158,6 +166,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "reports" {
 # Reports are a few MB/week, so Standard storage is cheaper than paying
 # transition requests and Glacier IR's 128 KB minimum object charge.
 resource "aws_s3_bucket_lifecycle_configuration" "reports" {
+  #checkov:skip=CKV_AWS_300:False positive; abort_incomplete_multipart_upload is set below with a prefix filter
   bucket = aws_s3_bucket.reports.id
 
   rule {
@@ -183,7 +192,7 @@ data "aws_iam_policy_document" "reports_bucket" {
     sid       = "DenyInsecureTransport"
     effect    = "Deny"
     actions   = ["s3:*"]
-    resources = [aws_s3_bucket.reports.arn, "${aws_s3_bucket.reports.arn}/*"]
+    resources = [local.bucket_arn, "${local.bucket_arn}/*"]
 
     principals {
       type        = "*"

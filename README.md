@@ -1,5 +1,9 @@
 # prowler-aws
 
+[![CI](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 Low-cost, org-wide [Prowler](https://github.com/prowler-cloud/prowler) scanning for AWS.
 Prowler runs **weekly in GitHub Actions** (no always-on AWS compute), assumes a read-only
 role in every account of the AWS Organization, and writes HTML/CSV/OCSF reports to S3.
@@ -173,3 +177,17 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
   and trusts only the runner role.
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
 - Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.
+
+## Tests and CI
+
+- `terraform/scanner/tests/` checks the security notes above against the
+  rendered IAM policy JSON: the OIDC trust is pinned to `main` of one repo
+  by immutable ID, `sts:AssumeRole` is limited to your organization,
+  S3 writes are limited to `reports/`, and SES sending is limited to the
+  configured sender. The tests plan with dummy credentials, so they need
+  no AWS account (`terraform init -backend=false && terraform test`).
+- `tests/` covers the report email script: finding counts, muted
+  findings, missing reports, HTML escaping, and the attachment size limit
+  (`python -m pytest tests`).
+- `security-scan.yml` runs Gitleaks, Checkov and Trivy on every PR and
+  weekly. Accepted Checkov findings are skipped inline with the reason.
