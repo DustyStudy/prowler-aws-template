@@ -10,3 +10,7 @@ backend.hcl
 
 # Local Prowler runs
 output/
+
+# Python
+__pycache__/
+*.py[cod]
