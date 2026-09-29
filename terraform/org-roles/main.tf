@@ -91,6 +91,7 @@ resource "aws_cloudformation_stack_set_instance" "scan_role" {
 # Service-managed StackSets never deploy to the management account, so add the role here directly.
 # The workflow also uses this role to list the organization's accounts.
 resource "aws_cloudformation_stack" "management_scan_role" {
+  #checkov:skip=CKV_AWS_124:One read-only role stack managed by Terraform; stack events add no signal over the Terraform plan
   name          = "prowler-scan-role"
   template_body = local.template
   parameters    = local.parameters

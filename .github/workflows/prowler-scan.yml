@@ -3,6 +3,7 @@ name: Prowler scan
 on:
   schedule:
     - cron: "0 6 * * 0" # Sundays 06:00 UTC
+  # checkov:skip=CKV_GHA_7:The accounts input is passed via env and must match ^[0-9]{12}(,[0-9]{12})*$ before use
   workflow_dispatch:
     inputs:
       accounts:
