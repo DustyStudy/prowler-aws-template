@@ -178,6 +178,22 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
 - Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.
 
+## Service control policies
+
+Prowler needs to reach every region you scan, and the StackSet needs to
+update `ProwlerScan` in every account. If your organization uses SCPs that
+restrict regions or protect IAM roles (for example
+[aws-org-guardrails](https://github.com/DustyStudy/aws-org-guardrails)):
+
+- Exempt `arn:aws:iam::*:role/ProwlerScan` and
+  `arn:aws:iam::*:role/stacksets-exec-*`, the role service-managed StackSets
+  use in member accounts. `ProwlerScan` is read-only, so the exemption only
+  lets it read.
+- Protect the same role names, so nobody in a member account can create or
+  change a role with those names and inherit the exemption.
+- Otherwise a region deny shows up as access-denied errors for every region
+  in `SCAN_REGIONS` outside the allowed list, and StackSet updates fail.
+
 ## Tests and CI
 
 - `terraform/scanner/tests/` checks the security notes above against the

@@ -19,9 +19,11 @@ def _finding(status_code, severity="High", code="s3_bucket_public", status="New"
     return {"status_code": status_code, "severity": severity, "status": status, "metadata": {"event_code": code}}
 
 
-def _write_account(reports_dir, account, findings, html="<html>report</html>"):
-    acct_dir = reports_dir / f"prowler-{account}"
-    acct_dir.mkdir(parents=True)
+def _write_account(reports_dir, account, findings, html="<html>report</html>", flat=False):
+    # flat=True mimics download-artifact v5+, which unpacks a lone artifact
+    # straight into the download path with no per-account folder.
+    acct_dir = reports_dir if flat else reports_dir / f"prowler-{account}"
+    acct_dir.mkdir(parents=True, exist_ok=True)
     (acct_dir / f"prowler-{account}.ocsf.json").write_text(json.dumps(findings), encoding="utf-8")
     if html is not None:
         (acct_dir / f"prowler-{account}.html").write_text(html, encoding="utf-8")
@@ -85,6 +87,16 @@ def test_email_totals_subject_and_attachments(tmp_path, run_script):
     assert msg["Subject"] == "Prowler 2026-09-27: 1 critical, 2 high across 2 accounts"
     attachments = sorted(p.get_filename() for p in msg.walk() if p.get_filename())
     assert attachments == ["prowler-dev-222222222222-2026-09-27.html", "prowler-prod-111111111111-2026-09-27.html"]
+
+
+def test_single_account_run_finds_flat_reports(tmp_path, run_script):
+    reports = tmp_path / "reports"
+    _write_account(reports, "111111111111", [_finding("FAIL", "High")], flat=True)
+
+    msg = run_script(["111111111111"], {"111111111111": "dev"})
+
+    assert "Scan failed" not in _html_body(msg)
+    assert [p.get_filename() for p in msg.walk() if p.get_filename()] == ["prowler-dev-111111111111-2026-09-27.html"]
 
 
 def test_missing_report_is_called_out(tmp_path, run_script):

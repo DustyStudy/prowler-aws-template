@@ -39,11 +39,15 @@ override_data {
   }
 }
 
+# terraform test also loads terraform.tfvars, so pin every input the
+# assertions depend on instead of inheriting a local email setup.
 variables {
-  github_owner    = "example-owner"
-  github_owner_id = 1234
-  github_repo     = "prowler-aws"
-  github_repo_id  = 5678
+  github_owner      = "example-owner"
+  github_owner_id   = 1234
+  github_repo       = "prowler-aws"
+  github_repo_id    = 5678
+  report_email      = null
+  report_from_email = null
 }
 
 run "runner_trust_is_pinned_to_main_of_one_repo" {
