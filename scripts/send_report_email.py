@@ -56,7 +56,12 @@ def main() -> None:
     rows, details, attachments, totals = [], [], [], Counter()
     for acct in accounts:
         label = f"{names.get(acct, '')} ({acct})".strip()
+        # download-artifact (v5+) unpacks a lone matching artifact straight
+        # into reports/ instead of reports/prowler-<acct>/, so a
+        # single-account run has no per-account folder.
         acct_dir = reports_dir / f"prowler-{acct}"
+        if not acct_dir.is_dir():
+            acct_dir = reports_dir
         ocsf = acct_dir / f"prowler-{acct}.ocsf.json"
         report = acct_dir / f"prowler-{acct}.html"
 
