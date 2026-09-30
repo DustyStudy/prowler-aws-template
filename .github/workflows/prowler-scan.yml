@@ -11,8 +11,8 @@ on:
         required: false
         default: ""
 
+# Each job that assumes an AWS role grants id-token itself.
 permissions:
-  id-token: write # OIDC to AWS
   contents: read
 
 concurrency:
@@ -33,11 +33,19 @@ jobs:
     if: vars.SCANNER_ACCOUNT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      id-token: write # OIDC to AWS
+      contents: read
     outputs:
       accounts: ${{ steps.list.outputs.accounts }}
       account_names: ${{ steps.list.outputs.account_names }}
       run_date: ${{ steps.list.outputs.run_date }}
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
       - name: Assume runner role
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
@@ -79,6 +87,9 @@ jobs:
     needs: discover
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    permissions:
+      id-token: write # OIDC to AWS
+      contents: read
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -87,7 +98,13 @@ jobs:
     env:
       ACCOUNT_ID: ${{ matrix.account }}
       RUN_DATE: ${{ needs.discover.outputs.run_date }}
+      REPORTS_BUCKET: ${{ vars.REPORTS_BUCKET }}
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -131,7 +148,7 @@ jobs:
         if: always()
         run: |
           if [[ -d output ]]; then
-            aws s3 cp output "s3://${{ vars.REPORTS_BUCKET }}/reports/${RUN_DATE}/${ACCOUNT_ID}/" --recursive --only-show-errors
+            aws s3 cp output "s3://${REPORTS_BUCKET}/reports/${RUN_DATE}/${ACCOUNT_ID}/" --recursive --only-show-errors
           fi
 
       # Hand the HTML + OCSF files to the email job. One-day retention keeps artifact storage near zero.
@@ -167,7 +184,7 @@ jobs:
               echo "No OCSF output produced; see the Run Prowler step log."
             fi
             echo ""
-            echo "Reports: \`s3://${{ vars.REPORTS_BUCKET }}/reports/${RUN_DATE}/${ACCOUNT_ID}/\`"
+            echo "Reports: \`s3://${REPORTS_BUCKET}/reports/${RUN_DATE}/${ACCOUNT_ID}/\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   email:
@@ -177,7 +194,15 @@ jobs:
     if: always() && needs.discover.result == 'success' && vars.REPORT_EMAIL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      id-token: write # OIDC to AWS
+      contents: read
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
