@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Low-cost, org-wide [Prowler](https://github.com/prowler-cloud/prowler) scanning for AWS.
 Prowler runs **weekly in GitHub Actions** (no always-on AWS compute), assumes a read-only
