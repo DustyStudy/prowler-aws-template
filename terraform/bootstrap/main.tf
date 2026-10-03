@@ -30,6 +30,8 @@ variable "region" {
 
 data "aws_caller_identity" "current" {}
 
+# Same trade-offs as the checkov skips below.
+# trivy:ignore:AWS-0089
 resource "aws_s3_bucket" "state" {
   #checkov:skip=CKV_AWS_18:State bucket for a two-stack template; CloudTrail data events are the better audit source if needed
   #checkov:skip=CKV_AWS_144:Versioned state is enough for this low-cost template; replication doubles cost
@@ -50,6 +52,8 @@ resource "aws_s3_bucket_versioning" "state" {
   }
 }
 
+# SSE-S3 by design; see the CKV_AWS_145 skip above.
+# trivy:ignore:AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   bucket = aws_s3_bucket.state.id
 

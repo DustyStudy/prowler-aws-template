@@ -127,6 +127,8 @@ resource "aws_iam_role_policy" "runner" {
 # Reports bucket
 # ---------------------------------------------------------------------------
 
+# Same trade-offs as the checkov skips below.
+# trivy:ignore:AWS-0089 trivy:ignore:AWS-0090
 resource "aws_s3_bucket" "reports" {
   #checkov:skip=CKV_AWS_21:Reports are regenerated every week; versioning would only add storage cost
   #checkov:skip=CKV_AWS_18:Access logging would cost more than the reports themselves; only the runner role can write here
@@ -153,6 +155,7 @@ resource "aws_s3_bucket_public_access_block" "reports" {
 }
 
 # SSE-S3 rather than a customer-managed KMS key: free, and avoids $1/month per key.
+# trivy:ignore:AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "reports" {
   bucket = aws_s3_bucket.reports.id
 
