@@ -71,5 +71,5 @@ jobs:
 
       - name: pytest
         run: |
-          pip install --quiet "pytest==9.1.1"
+          pip install --quiet --require-hashes -r requirements/dev.txt
           python -m pytest tests -q
