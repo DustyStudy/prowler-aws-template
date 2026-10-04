@@ -1,0 +1,7 @@
+# The Prowler release the scan runs. To upgrade, change the version, then
+# recompile the hash-pinned lock for the runner (Linux, Python 3.12):
+#
+#   uv pip compile requirements/prowler.in --generate-hashes --no-header \
+#     --python-version 3.12 --python-platform x86_64-manylinux_2_28 \
+#     -o requirements/prowler.txt
+prowler==5.43.0

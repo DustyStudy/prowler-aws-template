@@ -164,7 +164,8 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 |---|---|
 | More regions | `SCAN_REGIONS` in the workflow (space-separated) |
 | Different schedule | `cron` in the workflow |
-| Upgrade Prowler | `PROWLER_VERSION` in the workflow; review the [release notes](https://github.com/prowler-cloud/prowler/releases). Also re-sync `org-roles/templates/prowler-scan-role.yaml` with upstream `permissions/prowler-additions-policy.json` |
+| GovCloud partition | Set the `AWS_PARTITION` repository variable to `aws-us-gov`, and `AWS_REGION` / `SCAN_REGIONS` in the workflow to GovCloud regions |
+| Upgrade Prowler | The version in `requirements/prowler.in`, then recompile `requirements/prowler.txt` (command in that file); review the [release notes](https://github.com/prowler-cloud/prowler/releases). Also re-sync `org-roles/templates/prowler-scan-role.yaml` with upstream `permissions/prowler-additions-policy.json` |
 | Keep reports longer or shorter | `report_retention_days` in `scanner` |
 | Scan only some OUs | `target_ou_ids` in `org-roles` |
 
