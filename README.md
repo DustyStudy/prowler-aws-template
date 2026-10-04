@@ -10,6 +10,8 @@ role in every account of the AWS Organization, and writes HTML/CSV/OCSF reports 
 
 Expected AWS cost: **well under $1/month**. See [docs/COST.md](docs/COST.md).
 
+The workflow has been run against a real four-account organization: see [docs/PROOF.md](docs/PROOF.md).
+
 This repo is a template. It contains no account IDs, bucket names, or GitHub identifiers.
 You supply those at setup time, and they stay in gitignored files (`terraform.tfvars`,
 `backend.hcl`) and in GitHub repository variables.
