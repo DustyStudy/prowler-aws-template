@@ -11,6 +11,10 @@ the release you started from to see what changed.
 
 ### Security
 
+- The scan workflow's jobs run with blocked egress (`harden-runner`): only
+  GitHub, PyPI (install step) and `*.amazonaws.com` are reachable while the
+  jobs hold AWS credentials.
+
 - The scan job installs Prowler from `requirements/prowler.txt` with
   `--require-hashes`, so every package in its dependency tree is
   hash-checked before the job assumes a role in each account.
