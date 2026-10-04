@@ -22,9 +22,9 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   SCAN_REGIONS: us-east-1 # space-separated list passed to prowler -f
-  PROWLER_VERSION: "5.43.0"
   SCAN_ROLE_NAME: ProwlerScan
-  RUNNER_ROLE_ARN: arn:aws:iam::${{ vars.SCANNER_ACCOUNT_ID }}:role/prowler-gha-runner
+  AWS_PARTITION: ${{ vars.AWS_PARTITION || 'aws' }} # aws-us-gov in GovCloud
+  RUNNER_ROLE_ARN: arn:${{ vars.AWS_PARTITION || 'aws' }}:iam::${{ vars.SCANNER_ACCOUNT_ID }}:role/prowler-gha-runner
 
 jobs:
   discover:
@@ -55,7 +55,7 @@ jobs:
       - name: Assume management ProwlerScan role (can list org accounts)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: arn:aws:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ env.SCAN_ROLE_NAME }}
+          role-to-assume: arn:${{ env.AWS_PARTITION }}:iam::${{ vars.MANAGEMENT_ACCOUNT_ID }}:role/${{ env.SCAN_ROLE_NAME }}
           role-chaining: true
           role-skip-session-tagging: true # ProwlerScan's trust policy doesn't allow sts:TagSession
           role-session-name: prowler-discover
@@ -113,8 +113,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Prowler
-        run: pip install --quiet "prowler==${PROWLER_VERSION}"
+      # Every package in the tree is hash-checked: this job goes on to hold
+      # credentials for a role in each account.
+      - name: Install Prowler (hash-pinned)
+        run: pip install --quiet --require-hashes -r requirements/prowler.txt
 
       # Prowler assumes ProwlerScan in the target account itself and refreshes
       # those chained credentials, so the runner session must outlive the scan.
@@ -134,7 +136,7 @@ jobs:
           fi
           # shellcheck disable=SC2086
           prowler aws \
-            --role "arn:aws:iam::${ACCOUNT_ID}:role/${SCAN_ROLE_NAME}" \
+            --role "arn:${AWS_PARTITION}:iam::${ACCOUNT_ID}:role/${SCAN_ROLE_NAME}" \
             --role-session-name prowler-scan \
             -f $SCAN_REGIONS \
             -M csv html json-ocsf \

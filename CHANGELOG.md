@@ -9,6 +9,20 @@ the release you started from to see what changed.
 
 ## [Unreleased]
 
+### Security
+
+- The scan job installs Prowler from `requirements/prowler.txt` with
+  `--require-hashes`, so every package in its dependency tree is
+  hash-checked before the job assumes a role in each account.
+
+### Changed
+
+- Role ARNs in the scan workflow take their partition from the optional
+  `AWS_PARTITION` repository variable (default `aws`) instead of a
+  hardcoded `arn:aws:`.
+- The Prowler version now lives in `requirements/prowler.in`, not
+  `PROWLER_VERSION` in the workflow.
+
 ## [1.0.0] - 2026-09-29
 
 First tagged release, under the MIT license. Commits before this release
