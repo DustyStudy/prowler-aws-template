@@ -48,6 +48,8 @@ variables {
   github_repo_id    = 5678
   report_email      = null
   report_from_email = null
+
+  scan_workflow_path = null
 }
 
 run "runner_trust_is_pinned_to_main_of_one_repo" {
@@ -68,6 +70,31 @@ run "runner_trust_is_pinned_to_main_of_one_repo" {
   assert {
     condition     = jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com"
     error_message = "The trust policy must require the sts.amazonaws.com audience."
+  }
+
+  assert {
+    condition = !contains(
+      keys(jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals),
+      "token.actions.githubusercontent.com:job_workflow_ref"
+    )
+    error_message = "With scan_workflow_path unset, the trust policy must have no job_workflow_ref condition."
+  }
+}
+
+run "runner_trust_can_be_pinned_to_the_scan_workflow" {
+  command = plan
+
+  variables {
+    create_github_oidc_provider = false
+    scan_workflow_path          = ".github/workflows/prowler-scan.yml"
+  }
+
+  assert {
+    condition = (
+      jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:job_workflow_ref"]
+      == "example-owner/prowler-aws/.github/workflows/prowler-scan.yml@refs/heads/main"
+    )
+    error_message = "Only the scan workflow file on main may assume the runner role."
   }
 }
 

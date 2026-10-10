@@ -94,6 +94,13 @@ To confirm the format, run `gh api repos/<owner>/<repo>/actions/oidc/customizati
 `use_immutable_subject` should be `true`. If it is `false`, change the `sub` condition in
 `scanner/main.tf` to `repo:<owner>/<repo>:ref:refs/heads/main`.
 
+The `sub` condition matches every workflow file on `main`. To limit the role to the scan
+workflow, set `scan_workflow_path = ".github/workflows/prowler-scan.yml"` after your first
+successful scan and apply. The role then also requires the token's `job_workflow_ref` to
+be `<owner>/<repo>/.github/workflows/prowler-scan.yml@refs/heads/main`. Names are
+case-sensitive, and a wrong value fails the scan with
+`Not authorized to perform sts:AssumeRoleWithWebIdentity`; unset the variable to go back.
+
 If the account already has the GitHub OIDC provider, set `create_github_oidc_provider = false`.
 
 ### 4. Org roles (management account)
@@ -174,6 +181,7 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 ## Security notes
 
 - Only workflows on `main` can assume the runner role (OIDC `sub` condition). PR branches cannot.
+  With `scan_workflow_path` set, only that workflow file can (`job_workflow_ref` condition).
 - The runner can only assume roles named `ProwlerScan` in accounts of *your* organization
   (`aws:ResourceOrgID`), and can only `PutObject` under `reports/`.
 - `ProwlerScan` is read-only (`SecurityAudit` + `ViewOnlyAccess` + Prowler's read-only additions)
@@ -201,7 +209,7 @@ restrict regions or protect IAM roles (for example
 
 - `terraform/scanner/tests/` checks the security notes above against the
   rendered IAM policy JSON: the OIDC trust is pinned to `main` of one repo
-  by immutable ID, `sts:AssumeRole` is limited to your organization,
+  by immutable ID and, when `scan_workflow_path` is set, to that workflow file, `sts:AssumeRole` is limited to your organization,
   S3 writes are limited to `reports/`, and SES sending is limited to the
   configured sender. The tests plan with dummy credentials, so they need
   no AWS account (`terraform init -backend=false && terraform test`).

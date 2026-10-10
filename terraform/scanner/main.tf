@@ -54,6 +54,18 @@ data "aws_iam_policy_document" "runner_trust" {
       variable = "token.actions.githubusercontent.com:sub"
       values   = ["repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main"]
     }
+
+    # sub alone matches every workflow file on main, including one added by
+    # whoever can push there. Opt-in: a wrong path locks the scan out.
+    dynamic "condition" {
+      for_each = var.scan_workflow_path == null ? [] : [var.scan_workflow_path]
+
+      content {
+        test     = "StringEquals"
+        variable = "token.actions.githubusercontent.com:job_workflow_ref"
+        values   = ["${var.github_owner}/${var.github_repo}/${condition.value}@refs/heads/main"]
+      }
+    }
   }
 }
 

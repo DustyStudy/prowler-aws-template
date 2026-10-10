@@ -11,6 +11,15 @@ the release you started from to see what changed.
 
 ### Security
 
+- New optional `scan_workflow_path` variable: when set, the runner role's
+  trust policy also requires the OIDC `job_workflow_ref` claim to name
+  that workflow file on `main`. The `sub` condition matches any workflow
+  file on `main`; the October 2026 GhostAction campaign committed
+  credential-stealing workflows to default branches with stolen
+  maintainer tokens
+  ([Socket](https://socket.dev/blog/ghostaction-cloud-credentials)).
+  Off by default, because a wrong path locks the scan out of the role.
+
 - The scan workflow's jobs run with blocked egress (`harden-runner`): only
   GitHub, PyPI (install step) and `*.amazonaws.com` are reachable while the
   jobs hold AWS credentials.
