@@ -28,6 +28,12 @@ variable "github_repo_id" {
   type        = number
 }
 
+variable "scan_workflow_path" {
+  description = "Path of the only workflow file allowed to assume the runner role (OIDC job_workflow_ref), for example .github/workflows/prowler-scan.yml. null allows any workflow file on main."
+  type        = string
+  default     = null
+}
+
 variable "runner_role_name" {
   type    = string
   default = "prowler-gha-runner"

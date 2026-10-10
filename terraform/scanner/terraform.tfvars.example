@@ -13,3 +13,7 @@ github_repo_id  = 987654321
 # budget_limit_usd = 5
 # report_retention_days = 365
 # create_github_oidc_provider = false  # if the account already has the GitHub OIDC provider
+
+# Recommended: only this workflow file on main can assume the runner role.
+# Leave it commented out for the first scan, then set it and apply.
+# scan_workflow_path = ".github/workflows/prowler-scan.yml"
