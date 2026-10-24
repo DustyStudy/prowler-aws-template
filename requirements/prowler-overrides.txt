@@ -1,0 +1,4 @@
+# Patched releases that Prowler's own exact pins hold back (h2 in prowler,
+# pymongo in huaweicloudsdkcore). The AWS scan does not use either one.
+h2==4.4.1
+pymongo==4.18.2

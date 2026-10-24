@@ -1,7 +1,15 @@
 # The Prowler release the scan runs. To upgrade, change the version, then
 # recompile the hash-pinned lock for the runner (Linux, Python 3.12):
 #
-#   uv pip compile requirements/prowler.in --generate-hashes --no-header \
+#   uv pip compile requirements/prowler.in \
+#     --overrides requirements/prowler-overrides.txt --generate-hashes --no-header \
 #     --python-version 3.12 --python-platform x86_64-manylinux_2_28 \
 #     -o requirements/prowler.txt
-prowler==5.43.0
+prowler==5.45.0
+
+# Dependabot cannot resolve this lock (it fails on the prowler pin), so
+# patched floors for transitive advisories are set here by hand.
+aiohttp>=3.14.4
+certifi>=2026.10.19
+dulwich>=1.2.9
+opentelemetry-api>=1.45.1
