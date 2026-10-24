@@ -131,9 +131,10 @@ jobs:
           python-version: "3.12"
 
       # Every package in the tree is hash-checked: this job goes on to hold
-      # credentials for a role in each account.
+      # credentials for a role in each account. --no-deps because the lock
+      # overrides upstream exact pins (requirements/prowler-overrides.txt).
       - name: Install Prowler (hash-pinned)
-        run: pip install --quiet --require-hashes -r requirements/prowler.txt
+        run: pip install --quiet --no-deps --require-hashes -r requirements/prowler.txt
 
       # Prowler assumes ProwlerScan in the target account itself and refreshes
       # those chained credentials, so the runner session must outlive the scan.
