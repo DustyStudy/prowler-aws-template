@@ -95,11 +95,26 @@ To confirm the format, run `gh api repos/<owner>/<repo>/actions/oidc/customizati
 `scanner/main.tf` to `repo:<owner>/<repo>:ref:refs/heads/main`.
 
 The `sub` condition matches every workflow file on `main`. To limit the role to the scan
-workflow, set `scan_workflow_path = ".github/workflows/prowler-scan.yml"` after your first
-successful scan and apply. The role then also requires the token's `job_workflow_ref` to
-be `<owner>/<repo>/.github/workflows/prowler-scan.yml@refs/heads/main`. Names are
-case-sensitive, and a wrong value fails the scan with
-`Not authorized to perform sts:AssumeRoleWithWebIdentity`; unset the variable to go back.
+workflow, pin the file inside `sub`. IAM evaluates only the `amr`, `aud`, `email`, `oaud`
+and `sub` claims of a GitHub token as condition keys, so a separate `job_workflow_ref`
+condition would never match. After your first successful scan:
+
+1. Add `job_workflow_ref` to the repo's OIDC subject template:
+
+   ```sh
+   gh api -X PUT repos/<owner>/<repo>/actions/oidc/customization/sub \
+     -F use_default=false -f 'include_claim_keys[]=repo' \
+     -f 'include_claim_keys[]=context' -f 'include_claim_keys[]=job_workflow_ref'
+   ```
+
+2. Set `scan_workflow_path = ".github/workflows/prowler-scan.yml"` and apply. The `sub`
+   condition becomes
+   `repo:<owner>@<owner-id>/<repo>@<repo-id>:ref:refs/heads/main:job_workflow_ref:<owner>/<repo>/.github/workflows/prowler-scan.yml@refs/heads/main`.
+
+Do both, or neither: the template changes the subject of every token the repo issues.
+Names are case-sensitive, and a mismatch fails the scan with
+`Not authorized to perform sts:AssumeRoleWithWebIdentity`. To go back, unset the variable,
+apply, and reset the template with `-F use_default=true`.
 
 If the account already has the GitHub OIDC provider, set `create_github_oidc_provider = false`.
 
@@ -181,7 +196,8 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 ## Security notes
 
 - Only workflows on `main` can assume the runner role (OIDC `sub` condition). PR branches cannot.
-  With `scan_workflow_path` set, only that workflow file can (`job_workflow_ref` condition).
+  With `scan_workflow_path` set and the subject template customized, only that workflow file
+  can (`job_workflow_ref` inside `sub`).
 - The runner can only assume roles named `ProwlerScan` in accounts of *your* organization
   (`aws:ResourceOrgID`), and can only `PutObject` under `reports/`.
 - `ProwlerScan` is read-only (`SecurityAudit` + `ViewOnlyAccess` + Prowler's read-only additions)

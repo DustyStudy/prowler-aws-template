@@ -49,22 +49,18 @@ data "aws_iam_policy_document" "runner_trust" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # A sub pinned to main matches every workflow file on main, including one
+    # added by whoever can push there. scan_workflow_path pins the file too.
+    # IAM can't read job_workflow_ref as its own condition key, so it goes in
+    # sub, and the repo's OIDC subject template must include it (see README).
+    # Opt-in: a wrong path or template locks the scan out.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main"]
-    }
-
-    # sub alone matches every workflow file on main, including one added by
-    # whoever can push there. Opt-in: a wrong path locks the scan out.
-    dynamic "condition" {
-      for_each = var.scan_workflow_path == null ? [] : [var.scan_workflow_path]
-
-      content {
-        test     = "StringEquals"
-        variable = "token.actions.githubusercontent.com:job_workflow_ref"
-        values   = ["${var.github_owner}/${var.github_repo}/${condition.value}@refs/heads/main"]
-      }
+      values = [join(":", compact([
+        "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main",
+        var.scan_workflow_path == null ? "" : "job_workflow_ref:${var.github_owner}/${var.github_repo}/${var.scan_workflow_path}@refs/heads/main",
+      ]))]
     }
   }
 }

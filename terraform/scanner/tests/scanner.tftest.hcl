@@ -73,11 +73,11 @@ run "runner_trust_is_pinned_to_main_of_one_repo" {
   }
 
   assert {
-    condition = !contains(
-      keys(jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals),
-      "token.actions.githubusercontent.com:job_workflow_ref"
-    )
-    error_message = "With scan_workflow_path unset, the trust policy must have no job_workflow_ref condition."
+    condition = keys(jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals) == [
+      "token.actions.githubusercontent.com:aud",
+      "token.actions.githubusercontent.com:sub",
+    ]
+    error_message = "The trust may only use aud and sub: IAM doesn't evaluate other GitHub claims, such as job_workflow_ref, as condition keys."
   }
 }
 
@@ -91,10 +91,18 @@ run "runner_trust_can_be_pinned_to_the_scan_workflow" {
 
   assert {
     condition = (
-      jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:job_workflow_ref"]
-      == "example-owner/prowler-aws/.github/workflows/prowler-scan.yml@refs/heads/main"
+      jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      == "repo:example-owner@1234/prowler-aws@5678:ref:refs/heads/main:job_workflow_ref:example-owner/prowler-aws/.github/workflows/prowler-scan.yml@refs/heads/main"
     )
-    error_message = "Only the scan workflow file on main may assume the runner role."
+    error_message = "With scan_workflow_path set, sub must also name the scan workflow file on main."
+  }
+
+  assert {
+    condition = keys(jsondecode(data.aws_iam_policy_document.runner_trust.json).Statement[0].Condition.StringEquals) == [
+      "token.actions.githubusercontent.com:aud",
+      "token.actions.githubusercontent.com:sub",
+    ]
+    error_message = "The workflow pin must live in sub, not in a separate job_workflow_ref condition."
   }
 }
 
