@@ -7,9 +7,14 @@
 #     -o requirements/prowler.txt
 prowler==5.45.0
 
-# Dependabot cannot resolve this lock (it fails on the prowler pin), so
-# patched floors for transitive advisories are set here by hand.
+# Patched floors for transitive advisories. Dependabot resolves this lock
+# only with the Python version in /.python-version (Prowler needs <3.14).
 aiohttp>=3.14.4
 certifi>=2026.10.19
+dnspython>=2.9.2
 dulwich>=1.2.9
-opentelemetry-api>=1.45.1
+filelock>=4.2.1
+oauthlib>=4.0.1
+opentelemetry-api>=1.45.2
+pyasn1>=0.6.5
+setuptools>=84.1.0
