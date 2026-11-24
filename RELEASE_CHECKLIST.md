@@ -49,4 +49,4 @@ None created by this release run.
 
 ## Resume point
 
-If a session ends: branch `release/v1-rc` in worktree `C:epos_wtprowler-rc`, draft PR #34. Next step: confirm PR checks green on the head commit, then work the owner blockers above.
+If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Next step: confirm PR checks green on the head commit, then work the owner blockers above.
