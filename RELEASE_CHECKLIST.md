@@ -23,7 +23,7 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 | 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | OPEN (optional) | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |
 | 11 | Versioning, SES recipient condition, KMS key and access logging apply cleanly to an existing deployment, and a scan uploads to the KMS-encrypted bucket | PASS (logs pending) | Private copy, 2026-11-24: plan 11 add / 3 change / 0 destroy, applied. Run 1 uploaded 236 objects; head-object shows `aws:kms` with the new key and bucket key enabled; versioning Enabled. Access-log delivery not yet observed (S3 delivers with hours of delay) |
 | 12 | README and CHANGELOG match the code | PASS | Fixed claims: scan results visibility, egress allowlist, GovCloud steps, 256-account limit, ProwlerScan read scope |
-| 13 | Release cut: CHANGELOG `[1.1.0]` dated, tag `v1.1.0`, GitHub release | IN PROGRESS | Owner approved merging and tagging once the live scan passed (2026-11-24) |
+| 13 | Release cut: CHANGELOG `[1.1.0]` dated, tag `v1.1.0`, GitHub release | PASS | PR #34 squash-merged as `667bf33` after 12/12 checks; tag `v1.1.0` and release published 2026-11-24 (owner approved after the live scan) |
 | 14 | GovCloud partition | OPEN (not a release commitment) | Documented as untested in README; no GovCloud org available |
 
 ## Decisions
@@ -37,13 +37,15 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 - **Test file needs Terraform >= 1.11** (`override_during`); stacks still accept >= 1.10. CI pins 1.15.9.
 - **Egress allowlist kept multi-tenant** (`*.amazonaws.com`, `*.blob.core.windows.net`): narrowing to per-service hosts risks breaking Prowler across regions; documented instead. Removed the unused blob entry from `discover`.
 - **Not done:** Dependabot pip version updates (only security updates touch the lock), Prowler upgrade to 5.52.0 (would invalidate the 5.43 allowlist evidence further), chunking >256 accounts (documented limit).
-- **Template repo `main` has no branch protection.** Changing repo settings needs owner approval.
+- **Template repo `main` is protected** by the active "Protect main" ruleset (PR required, squash only, required CI and security checks, CodeQL gate, no force push or deletion, no bypass) and release tags by "Protect release tags". An earlier note here said it was unprotected: the classic branch-protection API doesn't report rulesets.
 
 ## Blockers needing the owner
 
-1. Run the live checks (#9–#11) in the private deployed copy.
-2. Approve merge of the release PR, then the `v1.1.0` tag and release (#13).
-3. Optional: enable branch protection on the template repo's `main`.
+None for v1.1.0. Follow-ups after release:
+
+1. Access-log delivery to `prowler-reports-logs-<account>`: configuration verified 2026-11-24; first delivery not yet observed.
+2. Live run on Prowler 5.45.0 (private copy upgrade in progress), and `scan_workflow_path` pinning.
+3. GovCloud: no GovCloud organization available to test.
 
 ## AWS resources
 
@@ -55,4 +57,4 @@ Created in the owner's private deployment by the owner's apply (not disposable, 
 
 ## Resume point
 
-If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Live scan passed 2026-11-24. Next step: when the owner reports the live run, record its evidence in docs/PROOF.md and here, then merge on approval, move `[Unreleased]` to `[1.1.0]` and tag.
+Released 2026-11-24 as v1.1.0. The release branch and worktree were removed after merge.
