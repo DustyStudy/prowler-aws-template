@@ -41,6 +41,12 @@ the release you started from to see what changed.
   `--require-hashes`, so every package in its dependency tree is
   hash-checked before the job assumes a role in each account.
 
+- New opt-in `create_kms_key` (customer-managed KMS key for the reports
+  bucket, with rotation, a 30-day deletion window and an S3 bucket key) and
+  `enable_access_logging` (S3 server access logs to a separate private,
+  TLS-only bucket). Both default to off, so existing deployments plan with
+  no changes. The README's new Production hardening section recommends both.
+
 ### Changed
 
 - Role ARNs in the scan workflow take their partition from the optional
@@ -64,6 +70,8 @@ the release you started from to see what changed.
 - The README no longer says scan results never reach the repo: job
   summaries, run logs and (with email on) one-day artifacts carry them. It
   now also documents the 256-account-per-run matrix limit.
+- `docs/COST.md` no longer suggests making the repo public to save Actions
+  minutes, which would expose findings through summaries, logs and artifacts.
 
 ## [1.0.0] - 2026-09-29
 

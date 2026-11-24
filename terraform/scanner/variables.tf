@@ -57,6 +57,18 @@ variable "report_retention_days" {
   default     = 365
 }
 
+variable "create_kms_key" {
+  description = "Encrypt the reports bucket with a customer-managed KMS key (rotated yearly, about $1/month) instead of SSE-S3. Readers then need kms:Decrypt on the key through IAM."
+  type        = bool
+  default     = false
+}
+
+variable "enable_access_logging" {
+  description = "Send S3 server access logs for the reports bucket to a separate prowler-reports-logs-<account_id> bucket, kept for report_retention_days."
+  type        = bool
+  default     = false
+}
+
 variable "report_email" {
   description = "Address that receives (and, via SES, sends) the post-scan report email. Null disables it. AWS emails a verification link on first apply."
   type        = string

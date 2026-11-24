@@ -193,6 +193,30 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 | Keep reports longer or shorter | `report_retention_days` in `scanner` |
 | Scan only some OUs | `target_ou_ids` in `org-roles` |
 
+## Production hardening
+
+The defaults are built for the lowest cost. For production, set these in
+`terraform/scanner/terraform.tfvars` and apply:
+
+```hcl
+create_kms_key        = true # customer-managed KMS key for the reports bucket, rotated yearly
+enable_access_logging = true # S3 server access logs in prowler-reports-logs-<account>
+scan_workflow_path    = ".github/workflows/prowler-scan.yml" # after step 3's subject template change
+```
+
+- **KMS key:** about $1/month. The bucket uses an S3 bucket key, so KMS request
+  charges stay small. The runner role can use it only through S3 uploads
+  (`kms:GenerateDataKey`, plus `kms:Decrypt` for multipart uploads) and still has no
+  `s3:GetObject`, so it cannot read reports back. To read
+  reports, a principal needs `kms:Decrypt` on the key (`kms_key_arn` output) through
+  IAM; the key policy delegates to IAM in the security account. Reports written before
+  the switch stay SSE-S3 until they expire.
+- **Access logging:** a few cents a month. The log bucket uses SSE-S3, because S3 access
+  log delivery does not support SSE-KMS default encryption. Logs expire after
+  `report_retention_days`.
+- Also protect `main` (required reviews, no force pushes), keep the repo private, and
+  limit who can edit repository variables.
+
 ## Security notes
 
 - Only workflows on `main` can assume the runner role (OIDC `sub` condition). PR branches cannot.
@@ -209,8 +233,10 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
   multi-tenant domains, so it narrows exfiltration of the job's credentials but cannot rule it out.
 - The reports bucket is versioned, so a report overwritten by a workflow on `main` stays
   recoverable (`aws s3api list-object-versions`) until its old version expires. Nothing
-  alerts on an overwrite, and a plain download returns the newest version. It uses SSE-S3 rather than a KMS CMK and has no access logging, to keep
-  cost near zero. Add both if you need a NIST SP 800-53 Moderate/High baseline.
+  alerts on an overwrite, and a plain download returns the newest version.
+- By default the reports bucket uses SSE-S3 and has no access logging, to keep cost near
+  zero. **For production, or a NIST SP 800-53 Moderate/High baseline, turn both on** (see
+  [Production hardening](#production-hardening)).
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
 - Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.
 
@@ -243,14 +269,15 @@ restrict regions or protect IAM roles (for example
   by immutable ID and, when `scan_workflow_path` is set, to that workflow file, `sts:AssumeRole` is limited to your organization,
   S3 writes are limited to `reports/`, and SES sending is limited to the
   configured sender and recipient, and the reports bucket is versioned. The tests plan with dummy credentials, so they need
-  no AWS account (`terraform init -backend=false && terraform test`).
+  no AWS account (`terraform init -backend=false && terraform test`; the
+  test file needs Terraform 1.11 or later).
 - `tests/` covers the report email script: finding counts, muted
   findings, missing or truncated reports, HTML escaping, and the attachment size limit
   (`python -m pytest tests`).
 - `security-scan.yml` runs Gitleaks, Checkov and Trivy on every PR and
   weekly. Accepted Checkov findings are skipped inline with the reason.
 
-Latest results (release candidate, 2026-11-24): `terraform test` 6/6 and
+Latest results (release candidate, 2026-11-24): `terraform test` 9/9 and
 pytest 9/9 pass, all stacks validate, and the hash-pinned Prowler 5.45.0 lock
 installs and runs in a Linux Python 3.12 container. These use dummy AWS
 credentials and a mocked SES send. The last live org-wide scan was on Prowler

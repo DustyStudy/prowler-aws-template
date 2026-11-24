@@ -18,7 +18,7 @@ These assumptions are illustrative: 10 accounts, us-east-1 only, weekly scans, a
 
 - **No Prowler App**: its UI, API, Postgres, and Valkey run all the time and would cost roughly $50–150/month.
 - **No NAT gateway, VPC, or containers in AWS**: the scan runs entirely in GitHub.
-- **SSE-S3 instead of a KMS key**: this saves $1/month per key plus request charges.
+- **SSE-S3 instead of a KMS key, no access logging (defaults)**: this saves about $1/month for the key plus request charges. For production, turn on `create_kms_key` and `enable_access_logging` (about $1/month more in total; see the README's Production hardening section).
 - **No Glacier transitions**: the reports are small. Glacier IR charges each object as at least 128 KB, and transitions carry per-request fees, so moving the reports would cost more than keeping them in S3 Standard.
 - **Security Hub integration off**: Security Hub charges for each finding it ingests. Enable it with `-S` only if you already pay for Security Hub.
 - **One region**: scan time, and therefore Actions minutes, grows with each region scanned.
@@ -26,6 +26,6 @@ These assumptions are illustrative: 10 accounts, us-east-1 only, weekly scans, a
 ## Watch for
 
 - **Actions minutes on large orgs**: past about 40 accounts, you may exceed 2,000 min/month.
-  - Scan less often, split accounts across days, or make the repo public (public repos get unlimited minutes; reports never go to the repo).
+  - Scan less often, or split accounts across days with the `accounts` input. Don't make the repo public to get free minutes: job summaries, run logs and (with email on) report artifacts would become public.
   - Check usage with `gh api /users/<user>/settings/billing/usage` (or `/orgs/<org>/settings/billing/usage`), or under Settings → Billing.
 - **Scheduled workflows**: GitHub disables them after 60 days without repo activity (public repos only). Private repos are not affected.
