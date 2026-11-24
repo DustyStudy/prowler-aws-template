@@ -120,15 +120,39 @@ def test_account_names_are_html_escaped(tmp_path, run_script):
 
 
 def test_oversized_reports_are_dropped_and_mentioned(tmp_path, run_script, monkeypatch):
-    monkeypatch.setattr(sre, "MAX_ATTACHMENT_BYTES", 100)
+    monkeypatch.setattr(sre, "SES_MAX_BYTES", 50_000)
     reports = tmp_path / "reports"
-    _write_account(reports, "111111111111", [_finding("PASS")], html="x" * 50)
-    _write_account(reports, "222222222222", [_finding("PASS")], html="x" * 500)
+    _write_account(reports, "111111111111", [_finding("PASS")], html="x" * 1_000)
+    _write_account(reports, "222222222222", [_finding("PASS")], html="x" * 100_000)
 
     msg = run_script(["111111111111", "222222222222"])
 
     assert [p.get_filename() for p in msg.walk() if p.get_filename()] == ["prowler-account-111111111111-2026-09-27.html"]
     assert "1 report(s) were too large to attach" in _html_body(msg)
+    assert len(msg.as_bytes()) <= 50_000
+
+
+def test_large_body_counts_toward_the_size_limit(tmp_path, run_script, monkeypatch):
+    # Many critical/high findings make the HTML body itself large; the body must count.
+    monkeypatch.setattr(sre, "SES_MAX_BYTES", 60_000)
+    reports = tmp_path / "reports"
+    findings = [_finding("FAIL", "High", f"check_{i:04d}") for i in range(800)]
+    _write_account(reports, "111111111111", findings, html="x" * 20_000)
+
+    msg = run_script(["111111111111"])
+
+    assert len(msg.as_bytes()) <= 60_000
+    assert "1 report(s) were too large to attach" in _html_body(msg)
+
+
+def test_finding_without_metadata_is_counted(tmp_path, run_script):
+    reports = tmp_path / "reports"
+    _write_account(reports, "111111111111", [{"status_code": "FAIL", "severity": "High", "metadata": {}}])
+
+    msg = run_script(["111111111111"])
+
+    assert msg["Subject"] == "Prowler 2026-09-27: 0 critical, 1 high across 1 accounts"
+    assert "unknown" in _html_body(msg)
 
 
 def test_truncated_report_is_called_out_and_others_still_sent(tmp_path, run_script):
@@ -142,6 +166,3 @@ def test_truncated_report_is_called_out_and_others_still_sent(tmp_path, run_scri
     assert msg["Subject"] == "Prowler 2026-09-27: 0 critical, 1 high across 2 accounts"
     assert "Scan failed: no report" in _html_body(msg)
 
-
-def test_attachment_cap_fits_ses_limit_after_base64():
-    assert sre.MAX_ATTACHMENT_BYTES * 4 / 3 * 1.03 < 40_000_000  # +3% for MIME line breaks

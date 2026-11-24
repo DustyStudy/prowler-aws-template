@@ -30,8 +30,8 @@ the release you started from to see what changed.
   are multi-tenant domains, so this narrows exfiltration but cannot rule it out.
 
 - The reports bucket is versioned, with noncurrent versions expiring on the
-  same schedule as reports, so a workflow on `main` cannot silently replace
-  past reports.
+  same schedule as reports, so a report overwritten by a workflow on `main`
+  stays recoverable until then. Nothing alerts on an overwrite.
 
 - The runner role can send SES email only to the configured `report_email`
   (`ses:Recipients`), not just only from the configured sender. This matters
@@ -56,8 +56,11 @@ the release you started from to see what changed.
 
 - The report email is still sent when one account's OCSF file is truncated
   or unreadable; that account is listed as failed.
-- Attachments are capped at 27 MiB so the message stays under the 40 MB SES
-  limit after base64 encoding (the 30 MiB cap could exceed it).
+- The report email measures the whole encoded message, body included, and
+  drops the largest attachments until it fits the 40 MB SES limit. The old
+  30 MiB attachment-only cap could exceed it.
+- A finding without `metadata.event_code` no longer aborts the email; it is
+  listed as `unknown`.
 - The README no longer says scan results never reach the repo: job
   summaries, run logs and (with email on) one-day artifacts carry them. It
   now also documents the 256-account-per-run matrix limit.

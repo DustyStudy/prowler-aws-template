@@ -13,11 +13,11 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 |---|---|---|---|
 | 1 | All three Terraform stacks pass `fmt -check` and `validate` | PASS | Local, Terraform 1.16.6, 2026-11-24. CI pins 1.15.9: see #8 |
 | 2 | `terraform test` passes for the scanner stack (trust, org limit, S3, SES, versioning) | PASS | 6 passed, 0 failed (plan-only, dummy credentials: **mocked AWS**) |
-| 3 | Report email tests pass | PASS | pytest 8 passed in a fresh venv from `requirements/dev.txt --require-hashes`; SES is mocked by `DRY_RUN` |
+| 3 | Report email tests pass | PASS | pytest 9 passed in a fresh venv from `requirements/dev.txt --require-hashes`; SES is mocked by `DRY_RUN` |
 | 4 | Hash-pinned Prowler lock installs on Linux / Python 3.12 and runs | PASS | `python:3.12-slim` container: `pip install --no-deps --require-hashes -r requirements/prowler.txt` OK; `prowler --version` = 5.45.0; `prowler aws --list-checks` = 662 checks. `pip check` notes h2/pymongo above upstream exact pins: intended, see `requirements/prowler-overrides.txt` |
 | 5 | No hardcoded `arn:aws:` in Terraform, CloudFormation or workflows | PASS | grep: only README SCP guidance and a test fixture |
 | 6 | No open Dependabot, code-scanning or secret-scanning alerts | PASS | GitHub API, 2026-11-24: 0 / 0 / 0 |
-| 7 | Independent security review: no unresolved high/critical findings | PASS | Fable reviewer: 0 critical/high. Mediums/lows fixed or documented (see Decisions) |
+| 7 | Independent security review: no unresolved high/critical findings | PASS | Fable reviewer: 0 critical/high. Codex (gpt-6-astra) review: 2 medium email-script bugs (body not counted in SES size, KeyError on missing metadata) and 1 overstated versioning claim, all fixed with tests. Remaining items fixed or documented (see Decisions) |
 | 8 | CI (Terraform 1.15.9, pytest) and Security Scan (Gitleaks, Checkov, Trivy) pass on the release PR | OPEN | Runs on the draft PR |
 | 9 | Live org-wide scan passes on the release candidate (Prowler 5.45.0, new allowlist, region variables) | BLOCKED | Last live proof: 2026-10-04, Prowler 5.43.0, commit `1eeaa61` ([docs/PROOF.md](docs/PROOF.md)). Needs the owner to run `gh workflow run prowler-scan.yml` in their private deployed copy after syncing this branch |
 | 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | BLOCKED | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |

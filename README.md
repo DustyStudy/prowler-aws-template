@@ -207,8 +207,9 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 - The scan jobs run with `harden-runner` in block mode. The allowlist names GitHub, Azure
   artifact storage (scan and email jobs), PyPI (scan job) and `*.amazonaws.com`. These are
   multi-tenant domains, so it narrows exfiltration of the job's credentials but cannot rule it out.
-- The reports bucket is versioned, so a workflow on `main` can add reports but not silently
-  replace past ones. It uses SSE-S3 rather than a KMS CMK and has no access logging, to keep
+- The reports bucket is versioned, so a report overwritten by a workflow on `main` stays
+  recoverable (`aws s3api list-object-versions`) until its old version expires. Nothing
+  alerts on an overwrite, and a plain download returns the newest version. It uses SSE-S3 rather than a KMS CMK and has no access logging, to keep
   cost near zero. Add both if you need a NIST SP 800-53 Moderate/High baseline.
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
 - Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.
@@ -250,7 +251,7 @@ restrict regions or protect IAM roles (for example
   weekly. Accepted Checkov findings are skipped inline with the reason.
 
 Latest results (release candidate, 2026-11-24): `terraform test` 6/6 and
-pytest 8/8 pass, all stacks validate, and the hash-pinned Prowler 5.45.0 lock
+pytest 9/9 pass, all stacks validate, and the hash-pinned Prowler 5.45.0 lock
 installs and runs in a Linux Python 3.12 container. These use dummy AWS
 credentials and a mocked SES send. The last live org-wide scan was on Prowler
 5.43.0 ([docs/PROOF.md](docs/PROOF.md)); the live run for this release is still
