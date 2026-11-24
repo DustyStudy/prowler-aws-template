@@ -9,6 +9,8 @@ the release you started from to see what changed.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
 ### Security
 
 - New optional `scan_workflow_path` variable: when set, the runner role's
@@ -99,5 +101,6 @@ were published under Apache 2.0.
 - The state bucket denies non-HTTPS access.
 - The report email finds reports when a single artifact is downloaded.
 
-[Unreleased]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/prowler-aws-template/releases/tag/v1.0.0

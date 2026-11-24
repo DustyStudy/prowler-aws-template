@@ -19,11 +19,11 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 | 6 | No open Dependabot, code-scanning or secret-scanning alerts | PASS | GitHub API, 2026-11-24: 0 / 0 / 0 |
 | 7 | Independent security review: no unresolved high/critical findings | PASS | Fable reviewer: 0 critical/high. Codex (gpt-6-astra) review: 2 medium email-script bugs (body not counted in SES size, KeyError on missing metadata) and 1 overstated versioning claim, all fixed with tests. Remaining items fixed or documented (see Decisions). Codex confirm pass on the KMS/logging change: 1 medium (kms:ViaService used the partition DNS suffix; KMS docs require `.amazonaws.com` in all partitions), fixed |
 | 8 | CI (Terraform 1.15.9, pytest) and Security Scan (Gitleaks, Checkov, Trivy) pass on the release PR | PASS (re-check on head) | 12/12 checks passed on `4e90bb1` (PR #34): Terraform ×3, pytest, CodeQL, Checkov, Trivy, Gitleaks, zizmor. Later commits only touch the email script, its tests and docs; confirm green on the PR head before merge |
-| 9 | Live org-wide scan passes on the release candidate (new workflow, region variables, email script) | OPEN | Run 1 (2026-11-24, private copy, **old workflow** on its main, Terraform already at this release): 4/4 accounts, triage and email succeeded in 6 min 29 s. Needs a second run after the private copy merges the synced workflow (DustyStudy/prowler-aws PR #21) |
+| 9 | Live org-wide scan passes on the release candidate (new workflow, region variables, email script) | PASS | Run 2 (2026-11-24, private copy after merging the synced workflow, `3f46956`): discover without blob egress, 4/4 scans, triage and email succeeded in 6 min 27 s; `SCAN_REGIONS` resolved via default; email sent under the `ses:Recipients` policy. Private copy runs Prowler 5.43.0, so 5.45.0 is covered by #4 (container) only |
 | 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | OPEN (optional) | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |
 | 11 | Versioning, SES recipient condition, KMS key and access logging apply cleanly to an existing deployment, and a scan uploads to the KMS-encrypted bucket | PASS (logs pending) | Private copy, 2026-11-24: plan 11 add / 3 change / 0 destroy, applied. Run 1 uploaded 236 objects; head-object shows `aws:kms` with the new key and bucket key enabled; versioning Enabled. Access-log delivery not yet observed (S3 delivers with hours of delay) |
 | 12 | README and CHANGELOG match the code | PASS | Fixed claims: scan results visibility, egress allowlist, GovCloud steps, 256-account limit, ProwlerScan read scope |
-| 13 | Release cut: CHANGELOG `[1.1.0]` dated, tag `v1.1.0`, GitHub release | BLOCKED | Needs owner approval to merge to `main` and publish |
+| 13 | Release cut: CHANGELOG `[1.1.0]` dated, tag `v1.1.0`, GitHub release | IN PROGRESS | Owner approved merging and tagging once the live scan passed (2026-11-24) |
 | 14 | GovCloud partition | OPEN (not a release commitment) | Documented as untested in README; no GovCloud org available |
 
 ## Decisions
@@ -55,4 +55,4 @@ Created in the owner's private deployment by the owner's apply (not disposable, 
 
 ## Resume point
 
-If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Owner decision (2026-11-24): merge and tag `v1.1.0` only after the live scan (#9-#11) passes. Next step: when the owner reports the live run, record its evidence in docs/PROOF.md and here, then merge on approval, move `[Unreleased]` to `[1.1.0]` and tag.
+If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Live scan passed 2026-11-24. Next step: when the owner reports the live run, record its evidence in docs/PROOF.md and here, then merge on approval, move `[Unreleased]` to `[1.1.0]` and tag.

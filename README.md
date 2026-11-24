@@ -277,9 +277,9 @@ restrict regions or protect IAM roles (for example
 - `security-scan.yml` runs Gitleaks, Checkov and Trivy on every PR and
   weekly. Accepted Checkov findings are skipped inline with the reason.
 
-Latest results (release candidate, 2026-11-24): `terraform test` 9/9 and
-pytest 9/9 pass, all stacks validate, and the hash-pinned Prowler 5.45.0 lock
-installs and runs in a Linux Python 3.12 container. These use dummy AWS
-credentials and a mocked SES send. The last live org-wide scan was on Prowler
-5.43.0 ([docs/PROOF.md](docs/PROOF.md)); the live run for this release is still
-open. Details: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+Latest results (v1.1.0, 2026-11-24): `terraform test` 9/9 and pytest 9/9
+pass with dummy AWS credentials and a mocked SES send, and all stacks validate.
+A live four-account scan with the KMS key and access logging on passed end to
+end, including the report email ([docs/PROOF.md](docs/PROOF.md)). That run used
+Prowler 5.43.0; the 5.45.0 lock was checked in a Linux container only.
+Details: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
