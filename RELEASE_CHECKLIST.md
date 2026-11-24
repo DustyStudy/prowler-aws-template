@@ -51,4 +51,4 @@ None created by this release run.
 
 ## Resume point
 
-If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Next step: confirm PR checks green on the head commit, then work the owner blockers above.
+If a session ends: branch `release/v1-rc` in worktree `C:/repos/_wt/prowler-rc`, draft PR #34. Owner decision (2026-11-24): merge and tag `v1.1.0` only after the live scan (#9-#11) passes. Next step: when the owner reports the live run, record its evidence in docs/PROOF.md and here, then merge on approval, move `[Unreleased]` to `[1.1.0]` and tag.
