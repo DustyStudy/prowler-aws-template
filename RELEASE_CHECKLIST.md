@@ -19,9 +19,9 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 | 6 | No open Dependabot, code-scanning or secret-scanning alerts | PASS | GitHub API, 2026-11-24: 0 / 0 / 0 |
 | 7 | Independent security review: no unresolved high/critical findings | PASS | Fable reviewer: 0 critical/high. Codex (gpt-6-astra) review: 2 medium email-script bugs (body not counted in SES size, KeyError on missing metadata) and 1 overstated versioning claim, all fixed with tests. Remaining items fixed or documented (see Decisions). Codex confirm pass on the KMS/logging change: 1 medium (kms:ViaService used the partition DNS suffix; KMS docs require `.amazonaws.com` in all partitions), fixed |
 | 8 | CI (Terraform 1.15.9, pytest) and Security Scan (Gitleaks, Checkov, Trivy) pass on the release PR | PASS (re-check on head) | 12/12 checks passed on `4e90bb1` (PR #34): Terraform ×3, pytest, CodeQL, Checkov, Trivy, Gitleaks, zizmor. Later commits only touch the email script, its tests and docs; confirm green on the PR head before merge |
-| 9 | Live org-wide scan passes on the release candidate (Prowler 5.45.0, new allowlist, region variables) | BLOCKED | Last live proof: 2026-10-04, Prowler 5.43.0, commit `1eeaa61` ([docs/PROOF.md](docs/PROOF.md)). Needs the owner to run `gh workflow run prowler-scan.yml` in their private deployed copy after syncing this branch |
-| 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | BLOCKED | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |
-| 11 | Versioning, SES recipient condition, and (with `create_kms_key`/`enable_access_logging` on) the KMS key and log bucket apply cleanly to an existing deployment, and a scan uploads to the KMS-encrypted bucket | BLOCKED | Plan-tested only. Needs `terraform plan`/`apply` in the owner's security account, then a scan |
+| 9 | Live org-wide scan passes on the release candidate (new workflow, region variables, email script) | OPEN | Run 1 (2026-11-24, private copy, **old workflow** on its main, Terraform already at this release): 4/4 accounts, triage and email succeeded in 6 min 29 s. Needs a second run after the private copy merges the synced workflow (DustyStudy/prowler-aws PR #21) |
+| 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | OPEN (optional) | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |
+| 11 | Versioning, SES recipient condition, KMS key and access logging apply cleanly to an existing deployment, and a scan uploads to the KMS-encrypted bucket | PASS (logs pending) | Private copy, 2026-11-24: plan 11 add / 3 change / 0 destroy, applied. Run 1 uploaded 236 objects; head-object shows `aws:kms` with the new key and bucket key enabled; versioning Enabled. Access-log delivery not yet observed (S3 delivers with hours of delay) |
 | 12 | README and CHANGELOG match the code | PASS | Fixed claims: scan results visibility, egress allowlist, GovCloud steps, 256-account limit, ProwlerScan read scope |
 | 13 | Release cut: CHANGELOG `[1.1.0]` dated, tag `v1.1.0`, GitHub release | BLOCKED | Needs owner approval to merge to `main` and publish |
 | 14 | GovCloud partition | OPEN (not a release commitment) | Documented as untested in README; no GovCloud org available |
@@ -47,7 +47,11 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 
 ## AWS resources
 
-None created by this release run.
+Created in the owner's private deployment by the owner's apply (not disposable, part of the release): KMS key + alias `alias/prowler-reports`, log bucket `prowler-reports-logs-<account>` and its settings, versioning on the reports bucket. Nothing created by this session.
+
+## Notes
+
+- The private copy's #19 says harden-runner disables itself on private repos without a StepSecurity plan. Run 1's log shows the agent starting with `EgressPolicy:block`, `Private:true` and the allowlist loaded in every job, and no disable message. Enforcement of a blocked call was not tested; template docs unchanged.
 
 ## Resume point
 
