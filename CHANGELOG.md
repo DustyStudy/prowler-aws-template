@@ -25,8 +25,17 @@ the release you started from to see what changed.
   tokens, so it would have blocked the role.)
 
 - The scan workflow's jobs run with blocked egress (`harden-runner`): only
-  GitHub, PyPI (install step) and `*.amazonaws.com` are reachable while the
-  jobs hold AWS credentials.
+  GitHub, Azure artifact storage (scan and email jobs), PyPI (scan job) and
+  `*.amazonaws.com` are reachable while the jobs hold AWS credentials. These
+  are multi-tenant domains, so this narrows exfiltration but cannot rule it out.
+
+- The reports bucket is versioned, with noncurrent versions expiring on the
+  same schedule as reports, so a workflow on `main` cannot silently replace
+  past reports.
+
+- The runner role can send SES email only to the configured `report_email`
+  (`ses:Recipients`), not just only from the configured sender. This matters
+  once the account leaves the SES sandbox.
 
 - The scan job installs Prowler from `requirements/prowler.txt` with
   `--require-hashes`, so every package in its dependency tree is
@@ -39,6 +48,19 @@ the release you started from to see what changed.
   hardcoded `arn:aws:`.
 - The Prowler version now lives in `requirements/prowler.in`, not
   `PROWLER_VERSION` in the workflow.
+- `AWS_REGION` and `SCAN_REGIONS` come from optional repository variables
+  (default `us-east-1`), so changing regions or moving to GovCloud needs no
+  workflow edit. The README lists the Terraform settings GovCloud also needs.
+
+### Fixed
+
+- The report email is still sent when one account's OCSF file is truncated
+  or unreadable; that account is listed as failed.
+- Attachments are capped at 27 MiB so the message stays under the 40 MB SES
+  limit after base64 encoding (the 30 MiB cap could exceed it).
+- The README no longer says scan results never reach the repo: job
+  summaries, run logs and (with email on) one-day artifacts carry them. It
+  now also documents the 256-account-per-run matrix limit.
 
 ## [1.0.0] - 2026-09-29
 

@@ -129,3 +129,19 @@ def test_oversized_reports_are_dropped_and_mentioned(tmp_path, run_script, monke
 
     assert [p.get_filename() for p in msg.walk() if p.get_filename()] == ["prowler-account-111111111111-2026-09-27.html"]
     assert "1 report(s) were too large to attach" in _html_body(msg)
+
+
+def test_truncated_report_is_called_out_and_others_still_sent(tmp_path, run_script):
+    reports = tmp_path / "reports"
+    _write_account(reports, "111111111111", [_finding("FAIL", "High")])
+    _write_account(reports, "222222222222", [])
+    (reports / "prowler-222222222222" / "prowler-222222222222.ocsf.json").write_text('[{"status_code": "FA', encoding="utf-8")
+
+    msg = run_script(["111111111111", "222222222222"])
+
+    assert msg["Subject"] == "Prowler 2026-09-27: 0 critical, 1 high across 2 accounts"
+    assert "Scan failed: no report" in _html_body(msg)
+
+
+def test_attachment_cap_fits_ses_limit_after_base64():
+    assert sre.MAX_ATTACHMENT_BYTES * 4 / 3 * 1.03 < 40_000_000  # +3% for MIME line breaks

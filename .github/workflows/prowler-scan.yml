@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: us-east-1
-  SCAN_REGIONS: us-east-1 # space-separated list passed to prowler -f
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  SCAN_REGIONS: ${{ vars.SCAN_REGIONS || 'us-east-1' }} # space-separated list passed to prowler -f
   SCAN_ROLE_NAME: ProwlerScan
   AWS_PARTITION: ${{ vars.AWS_PARTITION || 'aws' }} # aws-us-gov in GovCloud
   RUNNER_ROLE_ARN: arn:${{ vars.AWS_PARTITION || 'aws' }}:iam::${{ vars.SCANNER_ACCOUNT_ID }}:role/prowler-gha-runner
@@ -41,9 +41,11 @@ jobs:
       account_names: ${{ steps.list.outputs.account_names }}
       run_date: ${{ steps.list.outputs.run_date }}
     steps:
-      # Blocked egress: a compromised dependency cannot send the AWS credentials
-      # this job holds anywhere but GitHub and AWS. If a step fails on a blocked
-      # call, the harden-runner log names the endpoint to add.
+      # Blocked egress: outbound calls are limited to the GitHub and AWS endpoints
+      # listed here (plus artifact storage and PyPI in the other jobs). Those are
+      # multi-tenant domains, so this narrows where a compromised dependency could
+      # send this job's AWS credentials but does not rule it out. If a step fails
+      # on a blocked call, the harden-runner log names the endpoint to add.
       - name: Harden runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
@@ -52,7 +54,6 @@ jobs:
             github.com:443
             api.github.com:443
             *.actions.githubusercontent.com:443
-            *.blob.core.windows.net:443
             *.amazonaws.com:443
 
       - name: Assume runner role

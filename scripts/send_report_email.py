@@ -21,7 +21,7 @@ from pathlib import Path
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
 SEV_COLORS = {"Critical": "#7a1c1c", "High": "#c0392b", "Medium": "#d68910", "Low": "#5d6d7e"}
-MAX_ATTACHMENT_BYTES = 30 * 1024 * 1024  # SES v2 raw limit is 40 MB incl. base64 overhead
+MAX_ATTACHMENT_BYTES = 27 * 1024 * 1024  # SES v2 limit is 40 MB per message; base64 + line breaks add ~37%
 
 
 def summarize(ocsf_path: Path) -> dict:
@@ -65,14 +65,15 @@ def main() -> None:
         ocsf = acct_dir / f"prowler-{acct}.ocsf.json"
         report = acct_dir / f"prowler-{acct}.html"
 
-        if not ocsf.exists():
+        try:
+            s = summarize(ocsf)
+        except (OSError, ValueError, TypeError, AttributeError):
+            # Missing, or truncated by a killed scan: report it, keep emailing the other accounts.
             rows.append(
                 f"<tr><td>{html.escape(label)}</td>"
                 f"<td colspan='6' style='color:#c0392b'>Scan failed: no report. See the run log.</td></tr>"
             )
             continue
-
-        s = summarize(ocsf)
         totals.update(s["by_sev"])
         cells = "".join(
             f"<td style='text-align:right;{'font-weight:bold;color:' + SEV_COLORS[sev] if s['by_sev'][sev] else 'color:#999'}'>"

@@ -150,6 +150,14 @@ run "ses_send_is_limited_to_the_configured_sender" {
   }
 
   assert {
+    condition = one([
+      for s in jsondecode(data.aws_iam_policy_document.runner.json).Statement :
+      s.Condition["ForAllValues:StringEquals"]["ses:Recipients"] if s.Sid == "SendReportEmail"
+    ]) == "security@example.com"
+    error_message = "SES sending must be restricted to report_email as the only recipient."
+  }
+
+  assert {
     condition = toset(one([
       for s in jsondecode(data.aws_iam_policy_document.runner.json).Statement : s.Resource if s.Sid == "SendReportEmail"
     ])) == toset(["arn:aws:ses:us-east-1:111111111111:identity/security@example.com", "arn:aws:ses:us-east-1:111111111111:identity/security+prowler@example.com"])
@@ -182,6 +190,16 @@ run "reports_bucket_is_private_and_expires" {
   assert {
     condition     = one(one(aws_s3_bucket_lifecycle_configuration.reports.rule).expiration).days == 365
     error_message = "Reports must expire after report_retention_days."
+  }
+
+  assert {
+    condition     = one(aws_s3_bucket_versioning.reports.versioning_configuration).status == "Enabled"
+    error_message = "The reports bucket must be versioned so an overwrite can't destroy a past report."
+  }
+
+  assert {
+    condition     = one(one(aws_s3_bucket_lifecycle_configuration.reports.rule).noncurrent_version_expiration).noncurrent_days == 365
+    error_message = "Overwritten report versions must expire after report_retention_days."
   }
 }
 

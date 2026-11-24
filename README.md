@@ -42,8 +42,10 @@ Click **Use this template** on GitHub, or:
 gh repo create <your-org>/prowler-aws --private --template DustyStudy/prowler-aws-template --clone
 ```
 
-Keep your copy **private**. Scan results never go to the repo, but the workflow file and
-repo variables reveal your account IDs.
+Keep your copy **private**. Scan results are never committed, but anyone who can read the
+repo's Actions runs sees each account's severity counts (job summary), Prowler's run log
+and, with email enabled, the full reports as one-day artifacts. The repo variables also
+reveal your account IDs.
 
 ## Prerequisites
 
@@ -184,9 +186,9 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 
 | Want | Change |
 |---|---|
-| More regions | `SCAN_REGIONS` in the workflow (space-separated) |
+| More regions | `gh variable set SCAN_REGIONS --body "us-east-1 us-west-2"` (space-separated; default `us-east-1`) |
 | Different schedule | `cron` in the workflow |
-| GovCloud partition | Set the `AWS_PARTITION` repository variable to `aws-us-gov`, and `AWS_REGION` / `SCAN_REGIONS` in the workflow to GovCloud regions |
+| GovCloud partition | Repository variables: `AWS_PARTITION=aws-us-gov`, `AWS_REGION=us-gov-west-1`, `SCAN_REGIONS="us-gov-west-1 us-gov-east-1"`. Terraform: add `region = "us-gov-west-1"` to each `backend.hcl`, pass `-var region=us-gov-west-1` to every stack, and set `AWS_USE_FIPS_ENDPOINT=true` in the shell that runs it. Not yet tested live in GovCloud (see [docs/PROOF.md](docs/PROOF.md)) |
 | Upgrade Prowler | The version in `requirements/prowler.in`, then recompile `requirements/prowler.txt` (command in that file); review the [release notes](https://github.com/prowler-cloud/prowler/releases). Also re-sync `terraform/org-roles/templates/prowler-scan-role.yaml` with upstream `permissions/prowler-additions-policy.json` |
 | Keep reports longer or shorter | `report_retention_days` in `scanner` |
 | Scan only some OUs | `target_ou_ids` in `org-roles` |
@@ -199,9 +201,23 @@ aws s3 cp s3://prowler-reports-<id>/reports/<date>/<account>/prowler-<account>.h
 - The runner can only assume roles named `ProwlerScan` in accounts of *your* organization
   (`aws:ResourceOrgID`), and can only `PutObject` under `reports/`.
 - `ProwlerScan` is read-only (`SecurityAudit` + `ViewOnlyAccess` + Prowler's read-only additions)
-  and trusts only the runner role.
+  and trusts only the runner role. Read-only still covers sensitive data: Prowler's additions
+  can fetch Lambda code and environment variables, ECR image layers and CloudWatch Logs
+  events, so treat the runner role as able to read those in every account.
+- The scan jobs run with `harden-runner` in block mode. The allowlist names GitHub, Azure
+  artifact storage (scan and email jobs), PyPI (scan job) and `*.amazonaws.com`. These are
+  multi-tenant domains, so it narrows exfiltration of the job's credentials but cannot rule it out.
+- The reports bucket is versioned, so a workflow on `main` can add reports but not silently
+  replace past ones. It uses SSE-S3 rather than a KMS CMK and has no access logging, to keep
+  cost near zero. Add both if you need a NIST SP 800-53 Moderate/High baseline.
 - Protect `main` with branch protection. Anyone who can push to it can change the workflow.
 - Third-party actions are pinned to commit SHAs. Dependabot opens PRs to update them.
+
+## Limits
+
+- GitHub allows at most 256 jobs per matrix, so one run scans at most 256 accounts. Larger
+  organizations can run the workflow several times with the `accounts` input.
+- At most 5 accounts scan at once (`max-parallel`). The rest queue.
 
 ## Service control policies
 
@@ -225,10 +241,17 @@ restrict regions or protect IAM roles (for example
   rendered IAM policy JSON: the OIDC trust is pinned to `main` of one repo
   by immutable ID and, when `scan_workflow_path` is set, to that workflow file, `sts:AssumeRole` is limited to your organization,
   S3 writes are limited to `reports/`, and SES sending is limited to the
-  configured sender. The tests plan with dummy credentials, so they need
+  configured sender and recipient, and the reports bucket is versioned. The tests plan with dummy credentials, so they need
   no AWS account (`terraform init -backend=false && terraform test`).
 - `tests/` covers the report email script: finding counts, muted
-  findings, missing reports, HTML escaping, and the attachment size limit
+  findings, missing or truncated reports, HTML escaping, and the attachment size limit
   (`python -m pytest tests`).
 - `security-scan.yml` runs Gitleaks, Checkov and Trivy on every PR and
   weekly. Accepted Checkov findings are skipped inline with the reason.
+
+Latest results (release candidate, 2026-11-24): `terraform test` 6/6 and
+pytest 8/8 pass, all stacks validate, and the hash-pinned Prowler 5.45.0 lock
+installs and runs in a Linux Python 3.12 container. These use dummy AWS
+credentials and a mocked SES send. The last live org-wide scan was on Prowler
+5.43.0 ([docs/PROOF.md](docs/PROOF.md)); the live run for this release is still
+open. Details: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).

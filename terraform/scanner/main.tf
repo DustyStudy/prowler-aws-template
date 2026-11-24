@@ -104,6 +104,13 @@ data "aws_iam_policy_document" "runner" {
         variable = "ses:FromAddress"
         values   = [statement.value]
       }
+
+      # Without this the role could mail any address once SES leaves the sandbox.
+      condition {
+        test     = "ForAllValues:StringEquals"
+        variable = "ses:Recipients"
+        values   = [var.report_email]
+      }
     }
   }
 }
@@ -136,9 +143,8 @@ resource "aws_iam_role_policy" "runner" {
 # ---------------------------------------------------------------------------
 
 # Same trade-offs as the checkov skips below.
-# trivy:ignore:AWS-0089 trivy:ignore:AWS-0090
+# trivy:ignore:AWS-0089
 resource "aws_s3_bucket" "reports" {
-  #checkov:skip=CKV_AWS_21:Reports are regenerated every week; versioning would only add storage cost
   #checkov:skip=CKV_AWS_18:Access logging would cost more than the reports themselves; only the runner role can write here
   #checkov:skip=CKV_AWS_144:Cross-region replication doubles cost for reproducible scan output
   #checkov:skip=CKV_AWS_145:SSE-S3 instead of a CMK saves $1/month per key; see the comment on the encryption resource
@@ -160,6 +166,16 @@ resource "aws_s3_bucket_public_access_block" "reports" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+# The runner holds s3:PutObject on reports/*; versioning keeps an overwritten
+# report recoverable until the lifecycle rule below expires the old version.
+resource "aws_s3_bucket_versioning" "reports" {
+  bucket = aws_s3_bucket.reports.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
 # SSE-S3 rather than a customer-managed KMS key: free, and avoids $1/month per key.
@@ -192,10 +208,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "reports" {
       days = var.report_retention_days
     }
 
+    noncurrent_version_expiration {
+      noncurrent_days = var.report_retention_days
+    }
+
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
   }
+
+  depends_on = [aws_s3_bucket_versioning.reports]
 }
 
 data "aws_iam_policy_document" "reports_bucket" {

@@ -38,7 +38,7 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/SecurityAudit"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/job-function/ViewOnlyAccess"
       Policies:
-        # Upstream: prowler-cloud/prowler permissions/prowler-additions-policy.json (v5.43.0),
+        # Upstream: prowler-cloud/prowler permissions/prowler-additions-policy.json (v5.45.0),
         # minus securityhub:BatchImportFindings (write; Security Hub integration is not used).
         - PolicyName: ProwlerAdditions
           PolicyDocument:
