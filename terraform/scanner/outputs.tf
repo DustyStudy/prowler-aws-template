@@ -16,3 +16,13 @@ output "report_from_email" {
 output "runner_role_arn" {
   value = aws_iam_role.runner.arn
 }
+
+output "kms_key_arn" {
+  description = "Reports bucket KMS key; grant kms:Decrypt on it to whoever reads reports. Null unless create_kms_key = true."
+  value       = one(aws_kms_key.reports[*].arn)
+}
+
+output "access_logs_bucket" {
+  description = "Bucket holding the reports bucket's access logs. Null unless enable_access_logging = true."
+  value       = one(aws_s3_bucket.access_logs[*].bucket)
+}

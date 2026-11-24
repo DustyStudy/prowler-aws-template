@@ -21,7 +21,7 @@ from pathlib import Path
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
 SEV_COLORS = {"Critical": "#7a1c1c", "High": "#c0392b", "Medium": "#d68910", "Low": "#5d6d7e"}
-MAX_ATTACHMENT_BYTES = 30 * 1024 * 1024  # SES v2 raw limit is 40 MB incl. base64 overhead
+SES_MAX_BYTES = 40_000_000  # SES v2 limit for the whole raw message, after base64
 
 
 def summarize(ocsf_path: Path) -> dict:
@@ -30,7 +30,7 @@ def summarize(ocsf_path: Path) -> dict:
     active = [f for f in failed if f.get("status") != "Suppressed"]
     by_sev = Counter(f.get("severity") for f in active)
     top = Counter(
-        (f.get("severity"), f["metadata"]["event_code"])
+        (f.get("severity"), (f.get("metadata") or {}).get("event_code", "unknown"))
         for f in active
         if f.get("severity") in ("Critical", "High")
     )
@@ -65,14 +65,15 @@ def main() -> None:
         ocsf = acct_dir / f"prowler-{acct}.ocsf.json"
         report = acct_dir / f"prowler-{acct}.html"
 
-        if not ocsf.exists():
+        try:
+            s = summarize(ocsf)
+        except (OSError, ValueError, TypeError, AttributeError):
+            # Missing, or truncated by a killed scan: report it, keep emailing the other accounts.
             rows.append(
                 f"<tr><td>{html.escape(label)}</td>"
                 f"<td colspan='6' style='color:#c0392b'>Scan failed: no report. See the run log.</td></tr>"
             )
             continue
-
-        s = summarize(ocsf)
         totals.update(s["by_sev"])
         cells = "".join(
             f"<td style='text-align:right;{'font-weight:bold;color:' + SEV_COLORS[sev] if s['by_sev'][sev] else 'color:#999'}'>"
@@ -109,27 +110,34 @@ Counts are failed findings, excluding muted ones.</p>
 Run log: <a href="{run_url}">{run_url}</a></p>
 </body></html>"""
 
-    # Drop attachments (largest first) if the total would exceed the SES size limit.
-    attachments.sort(key=lambda a: len(a[1]))
-    kept, size = [], 0
-    for name, data in attachments:
-        if size + len(data) <= MAX_ATTACHMENT_BYTES:
-            kept.append((name, data))
-            size += len(data)
-    if len(kept) < len(attachments):
-        body = body.replace("</body>", f"<p><i>{len(attachments) - len(kept)} report(s) were too large to attach; get them from S3.</i></p></body>")
-
     crit_high = totals["Critical"] + totals["High"]
-    msg = EmailMessage()
-    msg["Subject"] = f"Prowler {run_date}: {totals['Critical']} critical, {totals['High']} high across {len(accounts)} accounts"
+    subject = f"Prowler {run_date}: {totals['Critical']} critical, {totals['High']} high across {len(accounts)} accounts"
     if os.environ.get("SCAN_RESULT") not in ("success", ""):
-        msg.replace_header("Subject", msg["Subject"] + f" ({os.environ['SCAN_RESULT']})")
-    msg["From"] = f"Prowler <{from_addr}>"
-    msg["To"] = to_addr
-    msg.set_content(f"Prowler scan {run_date}: {crit_high} critical/high findings. View this email as HTML, or see {run_url}")
-    msg.add_alternative(body, subtype="html")
-    for name, data in kept:
-        msg.add_attachment(data, maintype="text", subtype="html", filename=name)
+        subject += f" ({os.environ['SCAN_RESULT']})"
+
+    def build(kept):
+        html_body = body
+        if len(kept) < len(attachments):
+            html_body = body.replace("</body>", f"<p><i>{len(attachments) - len(kept)} report(s) were too large to attach; get them from S3.</i></p></body>")
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = f"Prowler <{from_addr}>"
+        msg["To"] = to_addr
+        msg.set_content(f"Prowler scan {run_date}: {crit_high} critical/high findings. View this email as HTML, or see {run_url}")
+        msg.add_alternative(html_body, subtype="html")
+        for name, data in kept:
+            msg.add_attachment(data, maintype="text", subtype="html", filename=name)
+        return msg
+
+    # Measure the whole serialized message (body + base64 attachments) and drop the
+    # largest attachment until it fits SES. shortcut: a body alone over the limit
+    # (thousands of accounts) still fails the send; trim the details list if that happens.
+    kept = sorted(attachments, key=lambda a: len(a[1]))
+    msg = build(kept)
+    while kept and len(msg.as_bytes()) > SES_MAX_BYTES:
+        kept.pop()
+        msg = build(kept)
+    size = sum(len(data) for _, data in kept)
 
     if os.environ.get("DRY_RUN"):
         Path(os.environ["DRY_RUN"]).write_bytes(msg.as_bytes())

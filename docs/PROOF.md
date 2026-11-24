@@ -63,3 +63,30 @@ The run used about 21 runner-minutes. AWS charges were S3 storage for
   applied when the private copy was created, not as part of this run.
 - **Large organizations.** Four accounts ran in parallel under the
   `max-parallel: 5` limit. Queueing beyond five accounts was not exercised.
+
+## v1.1.0 release candidate (2026-11-24)
+
+The same four-account organization ran the release candidate, with
+`create_kms_key` and `enable_access_logging` turned on.
+
+| Check | Result |
+|---|---|
+| Terraform on the existing deployment | `plan`: 11 to add, 3 to change, 0 to destroy; applied |
+| Scan on the old workflow, new Terraform | 4 of 4 accounts succeeded; reports uploaded to the KMS-encrypted bucket |
+| Scan on the synced workflow | 4 of 4 accounts succeeded in 4 min 7 s to 5 min 30 s each; whole run 6 min 27 s |
+| KMS encryption | `head-object` on a new report: `aws:kms` with the new key, bucket key enabled |
+| Versioning | Enabled on the reports bucket |
+| Region variables | `SCAN_REGIONS` resolved to the copy's three regions through the workflow default |
+| `discover` without Azure blob storage | Succeeded |
+| Email with the recipient-limited SES policy | Sent: 4 accounts, 4 HTML attachments, 3,639 KB |
+| harden-runner | Started with `egress-policy: block` and the allowlist in every job on the private repo |
+
+Not covered by these runs:
+
+- **Prowler 5.45.0.** The private copy pins Prowler 5.43.0. The template's
+  5.45.0 lock was checked in a Linux Python 3.12 container (hash-checked
+  install, `prowler --version`, `--list-checks`), not in a live scan. The
+  upstream additions policy is identical between the two versions.
+- **Access-log delivery.** S3 delivers server access logs with a delay of
+  up to a few hours; none had arrived when this was written.
+- **`scan_workflow_path`** and **GovCloud**: not exercised.

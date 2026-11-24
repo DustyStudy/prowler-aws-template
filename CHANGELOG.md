@@ -9,6 +9,8 @@ the release you started from to see what changed.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
 ### Security
 
 - New optional `scan_workflow_path` variable: when set, the runner role's
@@ -25,12 +27,27 @@ the release you started from to see what changed.
   tokens, so it would have blocked the role.)
 
 - The scan workflow's jobs run with blocked egress (`harden-runner`): only
-  GitHub, PyPI (install step) and `*.amazonaws.com` are reachable while the
-  jobs hold AWS credentials.
+  GitHub, Azure artifact storage (scan and email jobs), PyPI (scan job) and
+  `*.amazonaws.com` are reachable while the jobs hold AWS credentials. These
+  are multi-tenant domains, so this narrows exfiltration but cannot rule it out.
+
+- The reports bucket is versioned, with noncurrent versions expiring on the
+  same schedule as reports, so a report overwritten by a workflow on `main`
+  stays recoverable until then. Nothing alerts on an overwrite.
+
+- The runner role can send SES email only to the configured `report_email`
+  (`ses:Recipients`), not just only from the configured sender. This matters
+  once the account leaves the SES sandbox.
 
 - The scan job installs Prowler from `requirements/prowler.txt` with
   `--require-hashes`, so every package in its dependency tree is
   hash-checked before the job assumes a role in each account.
+
+- New opt-in `create_kms_key` (customer-managed KMS key for the reports
+  bucket, with rotation, a 30-day deletion window and an S3 bucket key) and
+  `enable_access_logging` (S3 server access logs to a separate private,
+  TLS-only bucket). Both default to off, so existing deployments plan with
+  no changes. The README's new Production hardening section recommends both.
 
 ### Changed
 
@@ -39,6 +56,24 @@ the release you started from to see what changed.
   hardcoded `arn:aws:`.
 - The Prowler version now lives in `requirements/prowler.in`, not
   `PROWLER_VERSION` in the workflow.
+- `AWS_REGION` and `SCAN_REGIONS` come from optional repository variables
+  (default `us-east-1`), so changing regions or moving to GovCloud needs no
+  workflow edit. The README lists the Terraform settings GovCloud also needs.
+
+### Fixed
+
+- The report email is still sent when one account's OCSF file is truncated
+  or unreadable; that account is listed as failed.
+- The report email measures the whole encoded message, body included, and
+  drops the largest attachments until it fits the 40 MB SES limit. The old
+  30 MiB attachment-only cap could exceed it.
+- A finding without `metadata.event_code` no longer aborts the email; it is
+  listed as `unknown`.
+- The README no longer says scan results never reach the repo: job
+  summaries, run logs and (with email on) one-day artifacts carry them. It
+  now also documents the 256-account-per-run matrix limit.
+- `docs/COST.md` no longer suggests making the repo public to save Actions
+  minutes, which would expose findings through summaries, logs and artifacts.
 
 ## [1.0.0] - 2026-09-29
 
@@ -66,5 +101,6 @@ were published under Apache 2.0.
 - The state bucket denies non-HTTPS access.
 - The report email finds reports when a single artifact is downloaded.
 
-[Unreleased]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/DustyStudy/prowler-aws-template/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DustyStudy/prowler-aws-template/releases/tag/v1.0.0
