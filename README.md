@@ -280,6 +280,6 @@ restrict regions or protect IAM roles (for example
 Latest results (v1.1.0, 2026-11-24): `terraform test` 9/9 and pytest 9/9
 pass with dummy AWS credentials and a mocked SES send, and all stacks validate.
 A live four-account scan with the KMS key and access logging on passed end to
-end, including the report email ([docs/PROOF.md](docs/PROOF.md)). That run used
-Prowler 5.43.0; the 5.45.0 lock was checked in a Linux container only.
+end, including the report email, and a later run passed on Prowler 5.45.0 with
+`scan_workflow_path` set ([docs/PROOF.md](docs/PROOF.md)).
 Details: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).

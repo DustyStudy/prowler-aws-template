@@ -81,12 +81,17 @@ The same four-account organization ran the release candidate, with
 | Email with the recipient-limited SES policy | Sent: 4 accounts, 4 HTML attachments, 3,639 KB |
 | harden-runner | Started with `egress-policy: block` and the allowlist in every job on the private repo |
 
+A third run on the same day covered the two remaining items:
+
+| Check | Result |
+|---|---|
+| Prowler 5.45.0 | The private copy moved to the template's hash-pinned 5.45.0 lock (`--no-deps`, overrides, patched floors); the OCSF output reports 5.45.0. All jobs completed inside the harden-runner allowlist |
+| `scan_workflow_path` | Subject template set to `repo`, `context`, `job_workflow_ref` with immutable IDs kept; `plan` changed only the runner role's `sub` to `repo:<owner>@<id>/<repo>@<id>:ref:refs/heads/main:job_workflow_ref:<owner>/<repo>/.github/workflows/prowler-scan.yml@refs/heads/main`; applied |
+| Scan with both | 4 of 4 accounts, triage and email succeeded in 6 min 6 s |
+| Versioning | The account's HTML report held 3 versions after the day's 3 runs |
+
 Not covered by these runs:
 
-- **Prowler 5.45.0.** The private copy pins Prowler 5.43.0. The template's
-  5.45.0 lock was checked in a Linux Python 3.12 container (hash-checked
-  install, `prowler --version`, `--list-checks`), not in a live scan. The
-  upstream additions policy is identical between the two versions.
 - **Access-log delivery.** S3 delivers server access logs with a delay of
   up to a few hours; none had arrived when this was written.
-- **`scan_workflow_path`** and **GovCloud**: not exercised.
+- **GovCloud**: not exercised.
