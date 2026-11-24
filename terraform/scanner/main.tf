@@ -15,7 +15,8 @@ locals {
 
   # Built from the name (the role has no path) so the key policy renders at plan time.
   runner_role_arn = "arn:${local.partition}:iam::${local.account_id}:role/${var.runner_role_name}"
-  s3_via_service  = "s3.${var.region}.${data.aws_partition.current.dns_suffix}"
+  # kms:ViaService names the service as <service>.<region>.amazonaws.com, not by the partition's DNS suffix.
+  s3_via_service = "s3.${var.region}.amazonaws.com"
 
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 

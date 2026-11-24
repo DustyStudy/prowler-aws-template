@@ -21,8 +21,7 @@ override_data {
 override_data {
   target = data.aws_partition.current
   values = {
-    partition  = "aws"
-    dns_suffix = "amazonaws.com"
+    partition = "aws"
   }
 }
 
