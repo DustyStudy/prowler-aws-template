@@ -18,7 +18,7 @@ Status: PASS, FAIL, OPEN (needs a run that can't happen locally), BLOCKED (needs
 | 5 | No hardcoded `arn:aws:` in Terraform, CloudFormation or workflows | PASS | grep: only README SCP guidance and a test fixture |
 | 6 | No open Dependabot, code-scanning or secret-scanning alerts | PASS | GitHub API, 2026-11-24: 0 / 0 / 0 |
 | 7 | Independent security review: no unresolved high/critical findings | PASS | Fable reviewer: 0 critical/high. Codex (gpt-6-astra) review: 2 medium email-script bugs (body not counted in SES size, KeyError on missing metadata) and 1 overstated versioning claim, all fixed with tests. Remaining items fixed or documented (see Decisions) |
-| 8 | CI (Terraform 1.15.9, pytest) and Security Scan (Gitleaks, Checkov, Trivy) pass on the release PR | OPEN | Runs on the draft PR |
+| 8 | CI (Terraform 1.15.9, pytest) and Security Scan (Gitleaks, Checkov, Trivy) pass on the release PR | PASS (re-check on head) | 12/12 checks passed on `4e90bb1` (PR #34): Terraform ×3, pytest, CodeQL, Checkov, Trivy, Gitleaks, zizmor. Later commits only touch the email script, its tests and docs; confirm green on the PR head before merge |
 | 9 | Live org-wide scan passes on the release candidate (Prowler 5.45.0, new allowlist, region variables) | BLOCKED | Last live proof: 2026-10-04, Prowler 5.43.0, commit `1eeaa61` ([docs/PROOF.md](docs/PROOF.md)). Needs the owner to run `gh workflow run prowler-scan.yml` in their private deployed copy after syncing this branch |
 | 10 | `scan_workflow_path` (OIDC `sub` pinned to the workflow file) works live | BLOCKED | Plan-tested only. Needs a live apply + scan in the owner's copy (README step 3) |
 | 11 | Reports-bucket versioning and SES recipient condition apply cleanly to an existing deployment | BLOCKED | Plan-tested only. Needs `terraform plan`/`apply` in the owner's security account |
@@ -49,4 +49,4 @@ None created by this release run.
 
 ## Resume point
 
-If a session ends: branch `release/v1-rc` in worktree `C:\repos\_wt\prowler-rc`. Next step: check criterion #8 on the draft PR, then the owner blockers above.
+If a session ends: branch `release/v1-rc` in worktree `C:epos_wtprowler-rc`, draft PR #34. Next step: confirm PR checks green on the head commit, then work the owner blockers above.
