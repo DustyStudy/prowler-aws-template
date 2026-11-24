@@ -1,4 +1,4 @@
-# prowler-aws
+# AWS Organization Prowler Scan Template
 
 [![CI](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml/badge.svg)](https://github.com/DustyStudy/prowler-aws-template/actions/workflows/security-scan.yml)
@@ -8,11 +8,9 @@ Low-cost, org-wide [Prowler](https://github.com/prowler-cloud/prowler) scanning 
 Prowler runs **weekly in GitHub Actions** (no always-on AWS compute), assumes a read-only
 role in every account of the AWS Organization, and writes HTML/CSV/OCSF reports to S3.
 
-Expected AWS cost: **well under $1/month**. See [docs/COST.md](docs/COST.md).
+Expected AWS cost is **well under $1/month** under the [documented cost assumptions](docs/COST.md). The [reference deployment](docs/PROOF.md) scanned a four-account organization.
 
-The workflow has been run against a real four-account organization: see [docs/PROOF.md](docs/PROOF.md).
-
-This repo is a template. It contains no account IDs, bucket names, or GitHub identifiers.
+The template uses your AWS account IDs, report bucket, and GitHub deployment configuration.
 You supply those at setup time, and they stay in gitignored files (`terraform.tfvars`,
 `backend.hcl`) and in GitHub repository variables.
 
